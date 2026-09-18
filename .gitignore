@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Skill eval workspaces and local test media
+*-workspace/
+*.mp4
+*.mov
+*.png
