@@ -1,4 +1,4 @@
-# tiktok-ad-compliance
+# TikTok Ad Compliance Skill
 
 A Claude skill for making TikTok ads (video, image, animated, and Spark Ads) that pass TikTok's ad review and comply with EU advertising law.
 
