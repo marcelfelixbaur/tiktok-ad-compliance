@@ -18,18 +18,25 @@ Compliance here means two independent things, and clearing one does not clear th
 
 TikTok review does not check the Unfair Commercial Practices Directive, EU price-reduction rules, the AI Act, or German pharmaceutical advertising law. So an approved ad is not a lawful ad.
 
-**If any EU or EEA market is in scope, read `references/eu-law.md`.** It carries the legal layer and is not optional for those markets. Two obligations in it are live right now and routinely missed: AI Act Article 50 synthetic-content disclosure (applies since 2 August 2026) and the Directive (EU) 2024/825 ban on generic green claims (applies 27 September 2026). For non-EU markets the equivalent legal layer is not bundled here — say so plainly rather than implying the platform gate is the whole job.
+**If any EU or EEA market is in scope, read `references/eu-law.md`.** It carries the legal layer and is not optional for those markets. Two obligations in it are live right now and routinely missed: AI Act Article 50 synthetic-content disclosure (applies since 2 August 2026, and not delayed by the Digital Omnibus) and the Directive (EU) 2024/825 ban on generic green claims (applies since 27 September 2026). For non-EU markets the equivalent legal layer is not bundled here. Say so plainly rather than implying the platform gate is the whole job.
 
-## Step 0 — Establish four facts before anything else
+## Step 0 — Ask for four facts before anything else
 
 TikTok's policies are market-specific and vertical-specific to a degree that makes general answers useless. You cannot assess a single frame without knowing:
 
-1. **Target market(s)** — this selects the legal layer as well as the policy carve-outs. A supplement ad that's fine in the US is unlawful in the EU the moment it says "boosts immunity"; alcohol, crypto and pharmacy rules differ country by country, and France, Germany, Italy and the Nordics each add national rules on top of EU law.
-2. **Vertical / what's being sold** — this determines which gate in `references/restricted-verticals.md` applies.
-3. **Ad format** — In-Feed auction, Spark Ad (boosting an organic post), TopView, carousel/image, or Pangle. Specs and safe zones differ.
-4. **Advertiser status** — do they hold the licenses, certifications, or regulatory approvals their vertical requires? Restricted verticals are not "be careful" categories; they are "produce nothing until the paperwork exists" categories.
+1. **Target market(s)**: the countries the ad will run in. This selects the legal layer as well as the policy carve-outs. A supplement ad that's fine in the US is unlawful in the EU the moment it says "boosts immunity"; alcohol, crypto, gambling and pharmacy rules differ country by country, and France, Germany, Italy and the Nordics each add national rules on top of EU law.
+2. **What's being sold**: the product category, which determines which gate in `references/restricted-verticals.md` applies.
+3. **Ad format**: In-Feed auction, Spark Ad (boosting an organic post), TopView, carousel/image, or Pangle. Specs and safe zones differ.
+4. **Advertiser status**: do they hold the licences, certifications, or regulatory approvals their category requires? Restricted verticals are not "be careful" categories; they are "produce nothing until the paperwork exists" categories.
 
-If any of these is unknown, ask. Guessing the market is the single most common way this work goes wrong. If the user is impatient or only wants a quick draft, state the assumption loudly in your output ("written for US, 18+ targeting, In-Feed auction") so the gap is visible rather than buried.
+**Never assume the market or the product category. Ask.** This holds when the user wants a quick draft, sounds impatient, or the answer looks obvious, because a wrong guess here invalidates every check that follows and nothing downstream flags it.
+
+- **Don't infer the market** from the language the user writes in, the currency in the brief, the brand's home country, or where the user seems to be. A German-speaking user may be targeting Austria, Switzerland or the US. "€" covers 20 countries with different national rules.
+- **"Europe", "the EU", "global" or "everywhere" isn't an answer.** Ask which countries. National rules differ too much to treat the EU as one market, and "global" includes markets where the product may be banned.
+- **Don't infer the category from the product name alone.** Say which category you would place it in and ask the user to confirm. "Collagen powder" can be a food supplement or a cosmetic, a "detox tea" can be food or a weight-loss product, and the rules differ. If it spans categories, confirm each one.
+- **Ask for format and licence status too.** If the user doesn't know whether a licence exists, record that as an open question for the report. Don't wait on it before asking the rest.
+
+Ask everything that's missing in one message, so the user answers once. Until the market(s) and category are confirmed, don't write script, copy or shot lists, and don't give a verdict on whether something is allowed. `scripts/lint_copy.py` refuses to run without `--market` and `--vertical` for the same reason.
 
 ## Gate 1 — Eligibility (before you write a word of script)
 
@@ -80,20 +87,21 @@ Two bundled scripts do the mechanical checks so you don't burn reasoning on them
 **Copy and caption lint** — pattern-matches script, caption, headline, and on-screen text against the claim categories that get ads rejected, and checks character limits:
 
 ```bash
-python3 scripts/lint_copy.py --text "your ad copy here" --vertical health --market US
-python3 scripts/lint_copy.py --file script.txt --market DE --vertical beauty   # EU pack on
-python3 scripts/lint_copy.py --file script.txt --market FR --creator --aigc    # + disclosure duties
+python3 scripts/lint_copy.py --text "your ad copy here" --market US --vertical supplements
+python3 scripts/lint_copy.py --file script.txt --market DE --vertical beauty            # EU pack on
+python3 scripts/lint_copy.py --file script.txt --market FR,BE --vertical other --creator --aigc
 ```
 
-**Pass the real market.** `--market` with an EU/EEA country code (or `EU`) activates the legal
-rule pack — green claims, the 30-day price rule, EU health-claim wording, AI Act disclosure,
-influencer disclosure — and surfaces country-specific notes. The same copy can lint completely
-clean for `US` and return three blocking findings for `DE`, which is the whole point: those
-findings are matters of law that TikTok's review will not catch for you.
+**Pass exactly what the user confirmed in Step 0.** Both `--market` (ISO country codes, comma-separated) and `--vertical` are required and have no defaults. Never fill them with a guess. `--vertical` takes one or more of `health`, `pharmacy`, `supplements`, `weight`, `cosmetic-procedures`, `beauty`, `food`, `alcohol`, `finance`, `crypto`, `gambling`, `prediction-markets`, `gaming`, `dating`, `other`.
+
+- An EU/EEA country code turns on the legal rule pack: green claims, the 30-day price rule, EU health-claim wording, AI Act disclosure, influencer disclosure and country notes. The same copy can lint clean for `US` and return three blocking findings for `DE`. Those findings are matters of law that TikTok's review will not catch for you.
+- The market and category together trigger checks that don't depend on the wording. These are outright bans, such as pharmacy ads in France, alcohol in Norway and Lithuania, gambling in Italy and Brazil, and prediction markets outside the 17 markets TikTok allows. They also include the preconditions the advertiser owns.
+- For markets outside the EU/EEA, the linter checks TikTok policy only and says so. A clean result there is not a legal clearance.
+- Rule packs exist for **English, German and French** copy. Copy in another language is reported as unchecked. Review it by hand against the reference files with a native speaker rather than treating a clean result as a pass.
 
 It flags for human judgment; it does not adjudicate. A flag means "justify or rewrite this," and some flags are legitimately fine in context — but every flag needs a deliberate decision, not a shrug.
 
-**Media preflight** — runs ffprobe against a rendered file and checks resolution, aspect ratio, duration, bitrate, file size, audio presence, and how much of the runtime is effectively static. It also writes a safe-zone overlay frame you can look at to confirm nothing important sits under TikTok's UI:
+**Media preflight** — runs ffprobe against a rendered file and checks resolution, aspect ratio, duration, bitrate, file size, whether there is audible audio (a silent track fails like a missing one), and how much of the runtime is effectively static. It also writes a safe-zone overlay frame you can look at to confirm nothing important sits under TikTok's UI:
 
 ```bash
 python3 scripts/preflight_media.py ad.mp4 --format in-feed --overlay out/safezone.png
@@ -107,7 +115,7 @@ The safe-zone overlay is worth actually opening — text placement is the one ch
 End with a short compliance summary, not a wall of policy text. `assets/compliance-report.md` is the template. Keep it to what the user has to act on:
 
 - the verdict (clear to run / clear with conditions / cannot run as briefed)
-- assumptions made (market, age targeting, format)
+- the market(s), category and format the user confirmed
 - preconditions they own outside the creative — licenses, age-gate settings, landing-page fixes
 - anything flagged and consciously accepted, with the reasoning
 

@@ -102,6 +102,20 @@ def freeze_ratio(path, duration):
     return min(frozen / duration, 1.0)
 
 
+def audio_peak_db(path):
+    """Loudest sample on the first audio stream, in dBFS. None if it can't be measured.
+
+    An audio stream can be present and still carry nothing but silence, which review
+    treats the same as no audio at all.
+    """
+    r = run(["ffmpeg", "-hide_banner", "-nostats", "-i", path,
+             "-map", "0:a:0", "-af", "volumedetect", "-f", "null", "-"])
+    m = re.search(r"max_volume:\s*(-?[\d.]+|-inf) dB", r.stderr)
+    if not m:
+        return None
+    return float("-inf") if m.group(1) == "-inf" else float(m.group(1))
+
+
 def check_video(path, info, fmt, c):
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     a = next((s for s in info["streams"] if s["codec_type"] == "audio"), None)
@@ -182,6 +196,17 @@ def check_video(path, info, fmt, c):
         if abr and abr < 64:
             c.warn("audio quality", f"{abr:.0f} kbps is low — policy rejects unclear or muffled sound",
                    "Ad format and functionality")
+        peak = audio_peak_db(path)
+        if peak is None:
+            c.warn("audio level", "could not measure loudness")
+        elif peak <= -50:
+            c.fail("audio level", f"peak {peak:.0f} dBFS — the audio track is silent, which review "
+                                  "treats as no audio", "Ad format and functionality")
+        elif peak < -30:
+            c.warn("audio level", f"peak {peak:.0f} dBFS is very quiet — policy rejects unclear sound",
+                   "Ad format and functionality")
+        else:
+            c.ok("audio level", f"peak {peak:.0f} dBFS")
     else:
         c.fail("audio present", "no audio stream — TikTok requires audio and rejects silent ads",
                "Ad format and functionality")
