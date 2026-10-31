@@ -9,17 +9,18 @@ they don't need the policy text quoted back at them, they need to know what to d
 **Date:** [YYYY-MM-DD]
 **Asset(s):** [filenames]
 
-## Scope assumed
+## Scope confirmed with the user
 
 | | |
 |---|---|
-| Target market(s) | |
-| Vertical | |
+| Target market(s) | country codes, e.g. DE, FR |
+| Product category | as confirmed, e.g. supplements + beauty |
 | Ad format | In-Feed auction / Spark / TopView / image / Pangle |
 | Age targeting | 18+ / 21+ / 25+ / unrestricted |
 
-State these plainly even when confident. If any were assumed rather than confirmed,
-mark them **assumed** — a wrong market assumption invalidates most of what follows.
+Market(s) and category come from the user, never from an assumption. If either is still
+unconfirmed, don't issue this report: go back and ask. A wrong market or category
+invalidates most of what follows.
 
 ## Eligibility
 
@@ -44,14 +45,14 @@ TikTok approving the ad does not resolve any of it.
 
 | Area | Status |
 |---|---|
-| Green / sustainability claims (Dir. (EU) 2024/825, applies 27 Sep 2026) | n/a · clear · **outstanding** |
+| Green / sustainability claims (Dir. (EU) 2024/825, applies since 27 Sep 2026) | n/a · clear · **outstanding** |
 | Price-reduction claims (PID Art. 6a — 30-day lowest prior price) | n/a · confirmed by advertiser · **unverified** |
 | Health / nutrition claim wording (Reg. (EC) 1924/2006 register) | n/a · clear · **outstanding** |
 | Cosmetic claim substantiation (Reg. (EU) 655/2013) | n/a · clear · **outstanding** |
 | AI Act Art. 50 synthetic-content disclosure (in force since 2 Aug 2026) | n/a · on-screen label applied · **outstanding** |
 | Influencer / creator disclosure (national rules) | n/a · on-screen label applied · **outstanding** |
 | Pixel consent, advanced matching, DSA targeting limits | advertiser-owned — confirmed? |
-| Member-state specifics (FR, DE, IT, SE, NO, GR, ES) | which apply, and are they met |
+| Member-state specifics (FR, DE, IT, SE, NO, GR, ES, LT, NL, BE) | which apply, and are they met |
 
 Flag anything marked **outstanding** as a launch blocker, not a nice-to-have. Note explicitly
 where a call needs the advertiser's own legal review — a regulated vertical, a large spend, or
@@ -61,7 +62,7 @@ a novel claim all warrant it, and saying so is not hedging.
 
 | Check | Result |
 |-------|--------|
-| Copy lint (`lint_copy.py`) | n block · n review · n note (market: ___, EU pack on/off) |
+| Copy lint (`lint_copy.py`) | n block · n review · n note (market: ___, vertical: ___, language: ___, EU pack on/off) |
 | Media preflight (`preflight_media.py`) | n fail · n warn · n pass |
 | Safe-zone overlay reviewed | yes / no — [what you saw] |
 | Music rights | CML / direct sync licence / original / **unresolved** |

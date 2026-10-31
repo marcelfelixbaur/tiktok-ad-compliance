@@ -13,12 +13,12 @@ sue over advertising claims directly.
 So for EU campaigns there are two independent gates, and creative must clear both.
 
 > **Not legal advice.** This is a working compliance layer built from published regulation and
-> guidance, current as of September 2026. EU directives are transposed differently in each
+> guidance, current as of October 2026. EU directives are transposed differently in each
 > member state, national case law varies, and the rules below carry real financial exposure.
 > For a regulated vertical, a large spend, or a novel claim, the advertiser needs their own
 > legal review. Say so rather than implying this file settles it.
 
-**Contents:** [Which law applies](#which-law-applies) · [Green claims](#green-claims--in-force-27-september-2026) · [Price and discounts](#price-and-discount-claims) · [AI disclosure](#ai-generated-content--in-force-since-2-august-2026) · [Unfair commercial practices](#unfair-commercial-practices-ucpd) · [Health, food, cosmetics](#health-food-and-cosmetics-claims) · [Data and targeting](#data-protection-and-targeting) · [Minors](#minors) · [Political ads](#political-advertising) · [Influencer disclosure](#influencer-and-creator-disclosure) · [Member-state specifics](#member-state-specifics) · [Sources](#sources)
+**Contents:** [Which law applies](#which-law-applies) · [Green claims](#green-claims--in-force-since-27-september-2026) · [Price and discounts](#price-and-discount-claims) · [AI disclosure](#ai-generated-content--in-force-since-2-august-2026) · [Unfair commercial practices](#unfair-commercial-practices-ucpd) · [Health, food, cosmetics](#health-food-and-cosmetics-claims) · [Data and targeting](#data-protection-and-targeting) · [Minors](#minors) · [Political ads](#political-advertising) · [Influencer disclosure](#influencer-and-creator-disclosure) · [Member-state specifics](#member-state-specifics) · [Sources](#sources)
 
 ## Which law applies
 
@@ -28,7 +28,7 @@ consumers is subject to German and EU rules. The main instruments touching ad cr
 | Instrument | What it governs | Status |
 |---|---|---|
 | UCPD 2005/29/EC | Misleading and aggressive practices; Annex I blacklist | In force |
-| Directive (EU) 2024/825 (ECGT / "EmpCo") | Environmental and durability claims | **Applies 27 Sep 2026** |
+| Directive (EU) 2024/825 (ECGT / "EmpCo") | Environmental and durability claims | **Applies since 27 Sep 2026** |
 | Price Indication Directive 98/6/EC Art. 6a (via Omnibus 2019/2161) | Price-reduction announcements | In force since 28 May 2022 |
 | AI Act (EU) 2024/1689 Art. 50 | Disclosure of synthetic content and deepfakes | **Applies since 2 Aug 2026** |
 | DSA (EU) 2022/2065 Arts. 26, 28 | Ad transparency; targeting of minors; special-category data | In force |
@@ -38,11 +38,12 @@ consumers is subject to German and EU rules. The main instruments touching ad cr
 | AVMSD 2010/13/EU (as amended by 2018/1808) | Commercial communications, minors, alcohol, HFSS | In force |
 | TTPA (EU) 2024/900 | Political advertising | Applies since 10 Oct 2025 |
 
-On the horizon: the **Digital Fairness Act** is in progress and is expected to tighten
-influencer marketing, dark patterns, and personalisation. Not law yet — don't write to it,
+On the horizon: the **Digital Fairness Act** is expected to tighten influencer marketing, dark
+patterns, and personalisation. As of late October 2026 the Commission had not yet published a
+proposal (one was reported for November 2026). It will take years to apply. Don't write to it,
 but don't build a campaign that only works if it never arrives.
 
-## Green claims — in force 27 September 2026
+## Green claims — in force since 27 September 2026
 
 The single most likely thing to catch an otherwise careful 2026 campaign, because the phrasing
 it bans is exactly the phrasing brands have used for a decade. Directive (EU) 2024/825 amends
@@ -109,6 +110,12 @@ Points that trip people up:
   exposure** — visible for visual content, audible where audio is the relevant mode. A line in
   the campaign settings is not disclosure; an on-screen label is.
 - It applies to **non-EU advertisers targeting EU audiences.**
+- **The Digital Omnibus did not delay it.** The Omnibus amending the AI Act (adopted June 2026,
+  in force since late July 2026) pushed the high-risk rules back to December 2027 and August
+  2028, but left Art. 50 on schedule. Its only Art. 50 change is a grace period until
+  2 December 2026 for providers' machine-readable marking (Art. 50(2)) on systems already on the
+  market before 2 August 2026. The deployer's deepfake disclosure, which is what bites on ad
+  creative, has applied since 2 August 2026.
 
 This overlaps with, but is stricter than, TikTok's own AIGC labelling rule in
 `claims-and-copy.md`. Satisfy the AI Act and you satisfy TikTok; the reverse isn't guaranteed.
@@ -207,10 +214,17 @@ both the creator and the brand — and in France they are jointly and severally 
 
 - Disclosure must be clear, upfront, and understandable — not buried in hashtags at the end.
 - **Germany:** `#Werbung` or `#Anzeige`, placed at the start.
-- **France:** the Loi Delaporte-Vojetta (June 2023) requires clear labelling such as
-  `#sponsorisé`, `#partenariat rémunéré`, or "publicité"; it also covers gifted product.
-- **Italy:** AGCOM rules under the Audiovisual Media Act apply to influencers above roughly one
-  million followers, with penalties from €30,000 to €600,000 for breaches affecting minors.
+- **France:** the influence law (Loi 2023-451, "Delaporte-Vojetta") names the labels
+  **"Publicité"** or **"Collaboration commerciale"**. Since Ordonnance 2024-978 (November 2024),
+  an equivalent mention suited to the format is also accepted if the audience understands it.
+  Use the named wordings unless there's a reason not to. The same law requires **"Image
+  retouchée"** on images where a body or face was slimmed, thickened or reshaped, and **"Image
+  virtuelle"** on bodies or faces generated by AI (equivalent wording also accepted). It bans
+  influencer promotion of cosmetic surgery and aesthetic procedures, and it covers gifted
+  product. Brand and creator are jointly liable.
+- **Italy:** AGCOM's binding influencer code (Delibera 197/25/CONS, July 2025) applies to creators
+  with at least 500,000 followers on a platform, or an average of one million monthly views,
+  who must register with AGCOM. Smaller creators remain bound by general consumer law.
 - Gifted product, affiliate links, and the brand's own employees all count as commercial
   relationships requiring disclosure.
 - Enforcement is active — penalties have landed in France, Latvia, Romania, Norway, Denmark
@@ -225,12 +239,14 @@ Check these before producing for the market. Not exhaustive — a prompt to veri
 
 | Market | Watch for |
 |---|---|
-| **France** | Loi Évin: alcohol advertising works on a *positive list* — anything not expressly permitted is prohibited, and content is restricted to factual product attributes. Pharmacy advertising prohibited (also a TikTok rule). Influencer Act liability. Mandatory French language (Loi Toubon). |
+| **France** | Loi Évin: alcohol advertising works on a *positive list* — anything not expressly permitted is prohibited, and content is restricted to factual product attributes. Pharmacy advertising prohibited (also a TikTok rule). Influence law: "Publicité" / "Collaboration commerciale", "Image retouchée" / "Image virtuelle", no influencer promotion of cosmetic procedures, joint liability. Mandatory French language (Loi Toubon). |
 | **Germany** | HWG restrictions on health-product advertising; UWG allows competitors and trade associations to issue cease-and-desist warnings (*Abmahnung*) over ad claims — an unusually fast enforcement route. Strict on comparative advertising and on `#Werbung` placement. |
-| **Italy** | AGCOM influencer rules; strong minors provisions with high penalties. |
+| **Italy** | **Gambling advertising banned** in all media, including online and influencer content (Decreto Dignità, DL 87/2018 art. 9). AGCOM's March 2026 guidelines allow only branded responsible-gambling messages. AGCOM influencer code for creators with 500k+ followers or 1M+ monthly views. Strong minors provisions. |
+| **Lithuania** | **Alcohol advertising banned** in all media, including social media and influencer content, since 2018. |
 | **Sweden / Norway** | Advertising directed at under-12s restricted; Norway bans alcohol advertising outright. |
 | **Greece** | Pharmacy advertising prohibited (TikTok rule); toy advertising restricted on TV. |
 | **Spain** | Restrictions on gambling advertising (Royal Decree 958/2020) are among the strictest in the EU — tight windows and heavy limits on promotional offers. |
+| **Netherlands / Belgium** | Gambling advertising heavily restricted: the Netherlands banned untargeted gambling ads from July 2023, and Belgium banned most gambling advertising from July 2023. TikTok allowing online casino ads in NL doesn't lift this. Get local legal review. |
 | **Netherlands / Denmark / Poland** | Active consumer-authority enforcement on influencer disclosure and pricing claims. |
 | **Ireland / Malta / Cyprus** | English-language creative often defaults here; confirm alcohol and gambling rules separately. |
 
@@ -253,3 +269,5 @@ don't apply this file to UK campaigns without checking.
 - Cosmetics claims common criteria (Reg. (EU) 655/2013): https://eur-lex.europa.eu/eli/reg/2013/655/oj
 - TTPA (Reg. (EU) 2024/900): https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/democracy-eu-citizenship-anti-corruption/democracy-and-electoral-rights/transparency-and-targeting-political-advertising_en
 - Commission Influencer Legal Hub: https://commission.europa.eu/topics/consumers/consumer-rights-and-complaints/influencer-legal-hub_en
+- France, influence law and Ordonnance 2024-978 (consolidated text on Légifrance): https://www.legifrance.gouv.fr/loda/id/JORFTEXT000047663185
+- Italy, AGCOM influencer code (Delibera 197/25/CONS): https://www.agcom.it/provvedimenti/delibera-197-25-cons
