@@ -1,6 +1,6 @@
 # TikTok Ad Compliance Skill
 
-A Claude skill for making TikTok ads (video, image, animated, and Spark Ads) that pass TikTok's ad review and comply with EU advertising law.
+A Claude skill for making TikTok ads (video, image, animated, and Spark Ads) that pass TikTok's ad review in any market. For campaigns in the EU and EEA, it also checks the ads against EU and national advertising law. For other markets, it checks TikTok's rules only and says so.
 
 TikTok approving an ad doesn't make it lawful. Ad review checks TikTok's own policies. It doesn't check the EU's Unfair Commercial Practices Directive, the 30-day price-reduction rule, AI Act disclosure duties, or national rules like Germany's pharmaceutical advertising law. This skill checks both layers before anything is produced.
 
@@ -8,7 +8,7 @@ TikTok approving an ad doesn't make it lawful. Ad review checks TikTok's own pol
 
 The skill runs three checks, cheapest first, so problems are caught before they get into a finished video:
 
-1. **Eligibility.** It confirms the target market, product category, ad format and the advertiser's licences before any script is written. Some product categories can't be advertised at all. Others need licences, age targeting or disclaimers.
+1. **Eligibility.** It asks for the target countries, product category, ad format and the advertiser's licences before any script is written. It never assumes a market or category, and it doesn't guess them from the user's language or currency. Some product categories can't be advertised at all. Others need licences, age targeting or disclaimers.
 2. **Creative.** It writes the script, on-screen text, visuals, music and specs to the rules for that product category and market. Common problem claims are rewritten to say what the product does rather than what the viewer will become.
 3. **Preflight.** Two bundled scripts check the finished copy and media automatically.
 
@@ -18,10 +18,12 @@ Output ends with a short compliance report covering the verdict, the assumptions
 
 | Layer | Scope |
 |---|---|
-| TikTok platform policy | Global, with market-specific exceptions where TikTok publishes them |
-| Legal layer | **EU and EEA only**: UCPD, green claims (Directive (EU) 2024/825), price-reduction rule (Art. 6a PID), AI Act Art. 50, DSA, GDPR/ePrivacy, EU health and cosmetics claim rules, TTPA, influencer disclosure, and notes for FR, DE, IT, SE, NO, GR and ES |
+| TikTok platform policy | Global, including the market-by-market category changes in TikTok's 2026 policy change log (reviewed October 2026) |
+| Legal layer | **EU and EEA only**: UCPD, green claims (Directive (EU) 2024/825), price-reduction rule (Art. 6a PID), AI Act Art. 50, DSA, GDPR/ePrivacy, EU health and cosmetics claim rules, TTPA, influencer disclosure, and notes for FR, DE, IT, SE, NO, GR, ES, LT, NL and BE |
+| Copy linter languages | English, German, French. Copy in other languages is reported as unchecked, not passed |
+| Product categories | health, pharmacy, supplements, weight, cosmetic procedures, beauty, food, alcohol, finance, crypto, gambling, prediction markets, gaming, dating, and "other" |
 
-**Not covered:** the laws of the US, UK, and every market outside the EU and EEA. The skill says so when a campaign targets those markets instead of implying the platform check is enough. The UK is deliberately excluded because its rules (UK GDPR, the CAP/BCAP Codes, DMCCA 2024) are similar in spirit to the EU's but differ in detail.
+**Not covered:** the laws of the US, UK, and every market outside the EU and EEA. The skill and the linter say so when a campaign targets those markets instead of implying the platform check is enough. The UK is deliberately excluded because its rules (UK GDPR, the CAP/BCAP Codes, DMCCA 2024) are similar in spirit to the EU's but differ in detail.
 
 ## Contents
 
@@ -66,22 +68,30 @@ Once installed, the skill activates on requests like:
 Both scripts run without Claude and exit non-zero when something blocks, so they can be used in CI.
 
 ```bash
-# Copy lint. A --market with an EU/EEA country code turns on the EU legal checks.
-python3 tiktok-ad-compliance/scripts/lint_copy.py --file script.txt --vertical health --market US
-python3 tiktok-ad-compliance/scripts/lint_copy.py --file script.txt --market DE --creator --aigc
+# Copy lint. --market and --vertical are required; there are no defaults.
+# An EU/EEA country code turns on the EU legal checks.
+python3 tiktok-ad-compliance/scripts/lint_copy.py --file script.txt --market US --vertical supplements
+python3 tiktok-ad-compliance/scripts/lint_copy.py --file script.txt --market DE,AT --vertical beauty --creator --aigc
 
-# Media preflight: resolution, aspect ratio, duration, bitrate, audio, static-frame share, safe zones
+# Media preflight: resolution, aspect ratio, duration, bitrate, audible audio, static-frame share, safe zones
 python3 tiktok-ad-compliance/scripts/preflight_media.py ad.mp4 --overlay safezone.png
 ```
 
-The same copy can pass for `US` and fail for `DE`:
+`--market` takes ISO country codes (or `EU`/`EEA`) and rejects anything vaguer, such as "Europe". `--vertical` takes one or more categories (`supplements,beauty`). Together they also trigger checks that don't depend on wording: outright bans (pharmacy ads in France, alcohol in Norway and Lithuania, gambling in Italy and Brazil, prediction markets outside TikTok's 17 allowed markets) and the preconditions the advertiser owns.
+
+The same copy can pass for `US` and fail for `DE`, in English or German:
 
 ```
 "Our eco-friendly serum is carbon neutral and boosts your immune
  system. 30% off, was €49. Sustainable and paraben-free."
 
---market US  →  0 block · 0 review
---market DE  →  3 block · 4 review   (green claims, EU health-claim wording, price rule)
+--market US --vertical beauty  →  0 block · 0 review   (+ "no legal rule pack for US")
+--market DE --vertical beauty  →  3 block · 4 review   (green claims, EU health-claim wording, price rule)
+
+"Unser umweltfreundliches Serum ist klimaneutral und stärkt dein
+ Immunsystem. 30% Rabatt, statt 49 €. Nachhaltig und parabenfrei."
+
+--market DE --vertical beauty  →  3 block · 4 review
 ```
 
 **Requirements:** Python 3.8+ with the standard library only. `preflight_media.py` also needs `ffmpeg` and `ffprobe` on your PATH.
@@ -90,7 +100,7 @@ The linter matches known risky phrasings. It doesn't decide whether a claim is a
 
 ## Accuracy and limits
 
-- **Not legal advice.** The legal layer is a best-effort review based on published regulation and guidance, current as of September 2026. EU directives are written into law differently in each member state. Regulated products and large campaigns need the advertiser's own lawyers.
+- **Not legal advice.** The legal layer is a best-effort review based on published regulation and guidance, current as of October 2026. EU directives are written into law differently in each member state. Regulated products and large campaigns need the advertiser's own lawyers.
 - **Policies change.** TikTok revises its policies, and the exceptions by market change. Each reference file ends with source links. Check the live pages before a close call.
 - **Safe-zone figures are estimates.** They are conservative figures used by practitioners, not numbers TikTok publishes. The downloadable safe-zone templates in TikTok Ads Manager are the authoritative source.
 - **Passing every check makes approval likely, not certain.** TikTok's ad review makes its own judgment.
@@ -100,8 +110,11 @@ The linter matches known risky phrasings. It doesn't decide whether a claim is a
 Contributions are welcome, especially:
 
 - legal layers for other markets (US FTC, UK ASA/CAP, Australia, Brazil) as new `references/<market>-law.md` files with matching linter rule packs
+- linter rule packs for more languages (Italian, Spanish, Dutch, Polish, ...), added as extra language keys on the existing rules
 - policy updates, each with a link to the TikTok or EUR-Lex source
-- false positives and false negatives from the linter, with the copy that triggered them
+- false positives and false negatives from the linter, with the copy that triggered them, ideally as a test case
+
+Run the tests with `python3 -m unittest discover tests`. They use the standard library only; the media tests are skipped when `ffmpeg` isn't installed.
 
 ## Disclaimer
 
