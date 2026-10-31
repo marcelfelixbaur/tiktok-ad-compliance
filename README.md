@@ -189,7 +189,7 @@ tests/                                tests for both scripts
 ## Accuracy and limits
 
 - **Not legal advice.** The legal layer is a best-effort review based on published regulation and guidance, current as of October 2026. EU directives are written into law differently in each member state. Regulated products and large campaigns need the advertiser's own lawyers.
-- **Policies change.** Platforms revise their policies, and the exceptions by market change. Each reference file ends with source links. Check the live pages before a close call.
+- **Policies change.** Platforms revise their policies, and the exceptions by market change. Each reference file shows the date it was last reviewed and ends with source links. Claude warns you when a file it used is more than 60 days old. Check the live pages before a close call.
 - **Safe-zone figures are estimates.** They are conservative figures used by practitioners, not numbers TikTok publishes. The downloadable safe-zone templates in TikTok Ads Manager are the authoritative source.
 - **Passing every check makes approval likely, not certain.** Each platform's ad review makes its own judgment.
 

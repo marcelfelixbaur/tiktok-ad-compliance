@@ -8,6 +8,7 @@ they don't need the policy text quoted back at them, they need to know what to d
 **Verdict:** Clear to run · Clear with conditions · Cannot run as briefed
 **Date:** [YYYY-MM-DD]
 **Asset(s):** [filenames]
+**References last reviewed:** [oldest "Last reviewed" date among the reference files used. If it's more than 60 days old, say so above the verdict and how to update.]
 
 ## Scope confirmed with the user
 

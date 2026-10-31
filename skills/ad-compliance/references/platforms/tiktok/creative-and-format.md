@@ -1,4 +1,5 @@
 # Creative and Format Rules
+Last reviewed: 2026-10-31
 
 Visual and structural requirements: what can appear on screen, how the asset must be built, and what the landing page must contain.
 

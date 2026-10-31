@@ -1,4 +1,5 @@
 # Music, Likeness, and Intellectual Property
+Last reviewed: 2026-10-31
 
 The failure mode here is different from the rest: these problems usually surface *after* approval, as a muted ad, a takedown, or a rights-holder claim. Get them right during sourcing, because they're expensive to fix once the edit is locked.
 

@@ -1,4 +1,5 @@
 # Restricted and Prohibited Verticals
+Last reviewed: 2026-10-31
 
 The industry gate. Work out which bucket the product sits in before writing creative.
 
