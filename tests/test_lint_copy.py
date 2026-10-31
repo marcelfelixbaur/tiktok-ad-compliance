@@ -6,15 +6,16 @@ import subprocess
 import sys
 import unittest
 
-SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "tiktok-ad-compliance" / "scripts" / "lint_copy.py"
+SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "skills" / "ad-compliance" / "scripts" / "lint_copy.py"
 spec = importlib.util.spec_from_file_location("lint_copy", SCRIPT)
 lint_copy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lint_copy)
 
 
-def run(text, market, vertical="other", **kw):
+def run(text, market, vertical="other", platform="tiktok", **kw):
     scopes = lint_copy.market_scopes(lint_copy.parse_markets(market))
-    return lint_copy.lint(text, lint_copy.parse_verticals(vertical), scopes=scopes, **kw)
+    return lint_copy.lint(text, lint_copy.parse_verticals(vertical), lint_copy.parse_platforms(platform),
+                          scopes=scopes, **kw)
 
 
 def ids(findings, severity=None):
@@ -22,8 +23,8 @@ def ids(findings, severity=None):
 
 
 class RequiredScope(unittest.TestCase):
-    def cli(self, *args):
-        return subprocess.run([sys.executable, str(SCRIPT), "--text", "Hello there", *args],
+    def cli(self, *args, platform=("--platform", "tiktok")):
+        return subprocess.run([sys.executable, str(SCRIPT), "--text", "Hello there", *platform, *args],
                               capture_output=True, text=True)
 
     def test_market_and_vertical_are_required(self):
@@ -31,6 +32,19 @@ class RequiredScope(unittest.TestCase):
             r = self.cli(*args)
             self.assertEqual(r.returncode, 2, args)
             self.assertIn("ask the user", r.stderr)
+
+    def test_platform_is_required(self):
+        r = self.cli("--market", "DE", "--vertical", "beauty", platform=())
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("ask the user", r.stderr)
+
+    def test_unknown_platforms_are_rejected(self):
+        for platform in ("meta", "facebook", "tiktok,youtube", ""):
+            r = self.cli("--market", "DE", "--vertical", "beauty", platform=("--platform", platform))
+            self.assertEqual(r.returncode, 2, platform)
+
+    def test_platform_list(self):
+        self.assertEqual(lint_copy.parse_platforms("TikTok, other"), {"tiktok", "other"})
 
     def test_vague_or_unknown_markets_are_rejected(self):
         for market in ("Germany", "Europe", "global"):
@@ -47,6 +61,53 @@ class RequiredScope(unittest.TestCase):
         r = self.cli("--market", "US", "--vertical", "other")
         self.assertEqual(r.returncode, 0)
         self.assertIn("No legal rule pack for US", r.stdout)
+
+
+class Platforms(unittest.TestCase):
+    def test_other_runs_the_eu_pack_but_no_tiktok_rules(self):
+        text = "The #1 eco-friendly serum, guaranteed. TikTok made me buy it. SHOP NOW NOW"
+        found = ids(run(text, "DE", "beauty", platform="other", aigc=True))
+        for rule in ("eu-green-generic", "eu-ai-act-disclosure"):
+            self.assertIn(rule, found)
+        for rule in ("superlative-absolute", "guarantee", "tiktok-brand", "aigc-undisclosed", "doubled-word",
+                     "shouting"):
+            self.assertNotIn(rule, found)
+
+    def test_other_runs_legal_gates_but_no_tiktok_gates(self):
+        for market, vertical in [("IT", "gambling"), ("NO", "alcohol"), ("LT", "alcohol")]:
+            self.assertIn("market-vertical-gate", ids(run("Visit us", market, vertical, platform="other")),
+                          f"{vertical} in {market}")
+        self.assertIn("market-vertical-gate",
+                      ids(run("Publicité", "FR", "cosmetic-procedures", platform="other", creator=True)))
+        for market, vertical in [("FR", "pharmacy"), ("BR", "gambling"), ("DE", "prediction-markets")]:
+            self.assertNotIn("market-vertical-gate", ids(run("Visit us", market, vertical, platform="other")),
+                             f"{vertical} in {market}")
+
+    def test_other_shows_only_the_legal_part_of_preconditions(self):
+        scopes = lint_copy.market_scopes({"DE"})
+        _, pre = lint_copy.check_gates({"food", "health"}, scopes, {"other"})
+        self.assertEqual(len(pre), 1)
+        self.assertIn("1924/2006", pre[0])
+        self.assertNotIn("Infant formula", pre[0])
+        _, pre = lint_copy.check_gates({"food"}, scopes, {"tiktok"})
+        self.assertIn("Infant formula", pre[0])
+
+    def test_other_says_platform_policy_was_not_checked(self):
+        r = subprocess.run([sys.executable, str(SCRIPT), "--text", "Hello there", "--platform", "other",
+                            "--market", "US", "--vertical", "other"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("Platform policy was NOT checked", r.stdout)
+
+    def test_tiktok_brand_only_fires_for_tiktok(self):
+        text = "TikTok made me buy it"
+        self.assertIn("tiktok-brand", ids(run(text, "US"), "BLOCK"))
+        self.assertNotIn("tiktok-brand", ids(run(text, "US", platform="other")))
+
+    def test_adding_other_leaves_tiktok_results_unchanged(self):
+        text = "Our eco-friendly serum is the #1 choice. 30% off, was €49."
+        for market in ("US", "DE", "FR"):
+            self.assertEqual(run(text, market, "beauty", aigc=True, creator=True),
+                             run(text, market, "beauty", platform="tiktok,other", aigc=True, creator=True))
 
 
 class SkillsOwnRewrites(unittest.TestCase):
@@ -149,7 +210,7 @@ class Verticals(unittest.TestCase):
 
     def test_every_vertical_has_preconditions_or_is_other(self):
         for vertical in lint_copy.VERTICALS:
-            _, pre = lint_copy.check_gates({vertical}, lint_copy.market_scopes({"US"}))
+            _, pre = lint_copy.check_gates({vertical}, lint_copy.market_scopes({"US"}), {"tiktok"})
             self.assertEqual(bool(pre), vertical != "other", vertical)
 
 

@@ -18,7 +18,7 @@ Market matters more than category. Several markets prohibit paid ads entirely; o
 
 ## Market-specific changes in 2026
 
-TikTok changed many category rules market by market during 2026. Each entry below allows something only "subject to strict compliance" with the ad policies. Unless stated otherwise, that means TikTok sales-rep approval, age targeting and any local licence. Nothing here overrides national law (see `eu-law.md` for EU member states).
+TikTok changed many category rules market by market during 2026. Each entry below allows something only "subject to strict compliance" with the ad policies. Unless stated otherwise, that means TikTok sales-rep approval, age targeting and any local licence. Nothing here overrides national law (see `references/law/eu-eea.md` for EU member states).
 
 | Month | Category | Markets | Change |
 |---|---|---|---|
@@ -53,7 +53,7 @@ TikTok changed many category rules market by market during 2026. Each entry belo
 
 The change log also lists updates to 0% alcohol (July), adult content (June and July), and NGO advertiser requirements (August) that couldn't be retrieved in detail. Check the live pages before relying on this file for those.
 
-**For any EU or EEA market, this file is only half the gate.** TikTok's platform policy sits alongside EU law, which independently restricts health, food, cosmetic, environmental, price and political claims and imposes its own disclosure duties. Read `eu-law.md` as well — clearing this file does not clear that one.
+**For any EU or EEA market, this file is only half the gate.** TikTok's platform policy sits alongside EU law, which independently restricts health, food, cosmetic, environmental, price and political claims and imposes its own disclosure duties. Read `references/law/eu-eea.md` as well — clearing this file does not clear that one.
 
 ## Globally prohibited
 
@@ -115,7 +115,7 @@ Weight-loss and muscle-gain claims are **restricted to 18+** audiences. Beyond t
 
 Before/after body comparisons are the classic failure here: they simultaneously imply guaranteed results, an ideal body type, and a life-outcome link.
 
-Weight-loss supplements, meal replacements and weight-loss surgery are allowed only in specific markets, with sales-rep approval, age targeting and local licences. Since July 2026, weight-management supplements are allowed across EMEA, North America and LATAM. Since May 2026, the APAC and Middle East/Africa markets listed under [2026 changes](#market-specific-changes-in-2026) also allow surgery and meal replacements. Look up the user's market in that table rather than assuming. In the EU, Reg. (EC) 1924/2006 still bans any rate or amount of weight loss in claims for foods and supplements (see `eu-law.md`).
+Weight-loss supplements, meal replacements and weight-loss surgery are allowed only in specific markets, with sales-rep approval, age targeting and local licences. Since July 2026, weight-management supplements are allowed across EMEA, North America and LATAM. Since May 2026, the APAC and Middle East/Africa markets listed under [2026 changes](#market-specific-changes-in-2026) also allow surgery and meal replacements. Look up the user's market in that table rather than assuming. In the EU, Reg. (EC) 1924/2006 still bans any rate or amount of weight loss in claims for foods and supplements (see `references/law/eu-eea.md`).
 
 ## Financial Services
 
@@ -144,7 +144,7 @@ Allowed only in approved countries, with all necessary regulator licenses or law
 - No offering alcohol as a prize or reward, and no offers or incentives encouraging consumption.
 - Must clearly state alcoholic content and strength, and carry a responsible-drinking disclaimer on both ad content and landing page.
 
-2026 additions: Cyprus and Luxembourg (June), alcohol-related venues in Cambodia, the Philippines, Singapore, Sri Lanka and Vietnam (July), and drinks above 5% ABV in Azerbaijan (August). National law can be stricter than TikTok. **Norway and Lithuania ban alcohol advertising outright**, and France's Loi Évin allows only a short list of factual content (see `eu-law.md`).
+2026 additions: Cyprus and Luxembourg (June), alcohol-related venues in Cambodia, the Philippines, Singapore, Sri Lanka and Vietnam (July), and drinks above 5% ABV in Azerbaijan (August). National law can be stricter than TikTok. **Norway and Lithuania ban alcohol advertising outright**, and France's Loi Évin allows only a short list of factual content (see `references/law/eu-eea.md`).
 
 ## Gambling and Games
 
@@ -160,7 +160,7 @@ Allowed only in approved countries, with all necessary regulator licenses or law
 - **Rewarded gaming** allowed in Argentina and Guatemala, and **social casino** in Guatemala (June).
 - **Brazil:** passive lotteries allowed (August), and then **all online gambling and gambling-information ads prohibited** (October).
 
-TikTok allowing a market doesn't override national law. **Italy bans gambling advertising** (Decreto Dignità), and Spain, the Netherlands and Belgium restrict it heavily (see `eu-law.md`).
+TikTok allowing a market doesn't override national law. **Italy bans gambling advertising** (Decreto Dignità), and Spain, the Netherlands and Belgium restrict it heavily (see `references/law/eu-eea.md`).
 
 ## Prediction markets and event contracts
 

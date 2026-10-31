@@ -118,7 +118,7 @@ Points that trip people up:
   creative, has applied since 2 August 2026.
 
 This overlaps with, but is stricter than, TikTok's own AIGC labelling rule in
-`claims-and-copy.md`. Satisfy the AI Act and you satisfy TikTok; the reverse isn't guaranteed.
+`references/platforms/tiktok/claims-and-copy.md`. Satisfy the AI Act and you satisfy TikTok; the reverse isn't guaranteed.
 
 ## Unfair commercial practices (UCPD)
 

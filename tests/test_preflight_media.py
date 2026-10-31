@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "tiktok-ad-compliance" / "scripts" / "preflight_media.py"
+SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "skills" / "ad-compliance" / "scripts" / "preflight_media.py"
 
 
 def make_video(path, audio):
@@ -20,8 +20,21 @@ def make_video(path, audio):
 
 
 def preflight(path):
-    r = subprocess.run([sys.executable, str(SCRIPT), str(path), "--json"], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, str(SCRIPT), str(path), "--platform", "tiktok", "--json"],
+                       capture_output=True, text=True)
     return r.returncode, {c["name"]: c["status"] for c in json.loads(r.stdout)["checks"]}
+
+
+class RequiredPlatform(unittest.TestCase):
+    def test_platform_is_required(self):
+        r = subprocess.run([sys.executable, str(SCRIPT), "ad.mp4"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("ask the user", r.stderr)
+
+    def test_unknown_platform_is_rejected(self):
+        r = subprocess.run([sys.executable, str(SCRIPT), "ad.mp4", "--platform", "meta"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
 
 
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")

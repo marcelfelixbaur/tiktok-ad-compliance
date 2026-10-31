@@ -81,7 +81,7 @@ Reported figures range from 150–240 px at the top and 440–660 px at the bott
 
 Rules of thumb that hold across the variants: keep critical text out of the **top ~10%**, the **bottom ~25%**, and the **right ~12%** of the frame. Centre-weight key messaging vertically. Never place a logo bottom-right.
 
-`scripts/preflight_media.py --overlay` renders these bounds over a frame of the actual cut so placement can be checked by eye, which is the only reliable way to check it.
+`scripts/preflight_media.py --platform tiktok --overlay` renders these bounds over a frame of the actual cut so placement can be checked by eye, which is the only reliable way to check it.
 
 ## A working export recipe
 
@@ -94,7 +94,7 @@ AAC audio, 128 kbps+, stereo, present for the full duration
 No black bars, no letterboxing, no pillarboxing
 ```
 
-Then run `scripts/preflight_media.py` before handover.
+Then run `scripts/preflight_media.py --platform tiktok` before handover.
 
 ## Sources
 
