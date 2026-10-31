@@ -1,6 +1,6 @@
 # TikTok Ad Compliance Skill
 
-A Claude skill for making TikTok ads (video, image, animated, and Spark Ads) that pass TikTok's ad review and comply with EU advertising law.
+A Claude skill for making TikTok ads (video, image, animated, and Spark Ads) that pass TikTok's ad review in any market. For campaigns in the EU and EEA, it also checks the ads against EU and national advertising law. For other markets, it checks TikTok's rules only and says so.
 
 TikTok approving an ad doesn't make it lawful. Ad review checks TikTok's own policies. It doesn't check the EU's Unfair Commercial Practices Directive, the 30-day price-reduction rule, AI Act disclosure duties, or national rules like Germany's pharmaceutical advertising law. This skill checks both layers before anything is produced.
 
