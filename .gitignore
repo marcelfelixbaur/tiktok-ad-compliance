@@ -10,3 +10,6 @@ __pycache__/
 *.mp4
 *.mov
 *.png
+
+# Plugin icon
+!.claude-plugin/icon.png

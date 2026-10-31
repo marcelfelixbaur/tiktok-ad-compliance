@@ -1,4 +1,4 @@
-# TikTok Ad Compliance Report — [campaign / asset name]
+# Ad Compliance Report — [campaign / asset name]
 
 Fill this in and hand it over with the creative. Keep it to what the user must act on;
 they don't need the policy text quoted back at them, they need to know what to do.
@@ -13,14 +13,15 @@ they don't need the policy text quoted back at them, they need to know what to d
 
 | | |
 |---|---|
+| Platform(s) | as confirmed, e.g. TikTok. Platforms whose policies aren't covered: say "policy not checked" |
 | Target market(s) | country codes, e.g. DE, FR |
 | Product category | as confirmed, e.g. supplements + beauty |
-| Ad format | In-Feed auction / Spark / TopView / image / Pangle |
+| Ad format | per platform, e.g. TikTok In-Feed auction / Spark / TopView / image / Pangle |
 | Age targeting | 18+ / 21+ / 25+ / unrestricted |
 
-Market(s) and category come from the user, never from an assumption. If either is still
-unconfirmed, don't issue this report: go back and ask. A wrong market or category
-invalidates most of what follows.
+Platform(s), market(s) and category come from the user, never from an assumption. If any is
+still unconfirmed, don't issue this report: go back and ask. A wrong platform, market or
+category invalidates most of what follows.
 
 ## Eligibility
 
@@ -41,7 +42,7 @@ out entirely if there are none — don't pad it.
 ## Legal layer (EU/EEA markets)
 
 Delete this section for non-EU campaigns. Keep it whenever any EU or EEA market is targeted —
-TikTok approving the ad does not resolve any of it.
+the platform approving the ad does not resolve any of it.
 
 | Area | Status |
 |---|---|
@@ -62,7 +63,8 @@ a novel claim all warrant it, and saying so is not hedging.
 
 | Check | Result |
 |-------|--------|
-| Copy lint (`lint_copy.py`) | n block · n review · n note (market: ___, vertical: ___, language: ___, EU pack on/off) |
+| Platform policy | checked against `references/platforms/<platform>/` · **not checked** (platform not covered) |
+| Copy lint (`lint_copy.py`) | n block · n review · n note (platform: ___, market: ___, vertical: ___, language: ___, EU pack on/off) |
 | Media preflight (`preflight_media.py`) | n fail · n warn · n pass |
 | Safe-zone overlay reviewed | yes / no — [what you saw] |
 | Music rights | CML / direct sync licence / original / **unresolved** |
@@ -90,8 +92,8 @@ Decisions that depend on facts only the advertiser has. Name the fact, not just 
 
 ---
 
-*Passing these checks makes approval likely, not certain — TikTok's ad review is its own
-judgment, policies change, and market carve-outs vary. Live policy index:*
+*Passing these checks makes approval likely, not certain — the platform's ad review is its own
+judgment, policies change, and market carve-outs vary. Live policy index for TikTok:*
 *https://ads.tiktok.com/resources/help/article/tiktok-advertising-policies*
 
 *The legal layer is a working compliance review, not legal advice. EU directives are transposed

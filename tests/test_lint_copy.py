@@ -111,7 +111,7 @@ class Platforms(unittest.TestCase):
 
 
 class SkillsOwnRewrites(unittest.TestCase):
-    """The rewrite table in references/claims-and-copy.md must agree with the linter."""
+    """The rewrite table in references/platforms/tiktok/claims-and-copy.md must agree with the linter."""
 
     REJECTED = ["Lose 10lbs in 2 weeks, guaranteed", "The #1 skincare brand in the world",
                 "Cures your anxiety", "Turn $100 into $10,000", "You'll finally feel confident in your body"]

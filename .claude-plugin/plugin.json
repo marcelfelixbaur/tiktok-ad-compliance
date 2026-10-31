@@ -1,0 +1,11 @@
+{
+  "name": "online-ad-compliance",
+  "displayName": "Online Ad Compliance",
+  "description": "Catch ad rejections before the platform does. Checks your ad against each platform's policies and the advertising law of your target markets before you produce it.",
+  "version": "1.0.0",
+  "author": { "name": "Marcel", "url": "https://github.com/marcelfelixbaur" },
+  "homepage": "https://github.com/marcelfelixbaur/online-ad-compliance",
+  "repository": "https://github.com/marcelfelixbaur/online-ad-compliance",
+  "license": "MIT",
+  "keywords": ["advertising", "ad-policy", "compliance", "tiktok", "eu-law"]
+}
