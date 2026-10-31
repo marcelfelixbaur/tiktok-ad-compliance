@@ -1,0 +1,16 @@
+{
+  "name": "marcelfelixbaur",
+  "owner": {
+    "name": "Marcel"
+  },
+  "metadata": {
+    "description": "Plugins by Marcel."
+  },
+  "plugins": [
+    {
+      "name": "online-ad-compliance",
+      "source": "./",
+      "description": "Catch ad rejections before the platform does."
+    }
+  ]
+}

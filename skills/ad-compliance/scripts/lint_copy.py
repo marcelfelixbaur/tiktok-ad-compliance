@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Lint TikTok ad copy against the claim patterns that get ads rejected or make them unlawful.
+"""Lint ad copy against the claim patterns that get ads rejected or make them unlawful.
 
 This flags language for a human decision — it does not adjudicate. Some flags are
 fine in context (a substantiated comparison, a disclosed risk warning). Every flag
 needs a deliberate call, though, because review treats these categories strictly.
 
---market and --vertical are required and have no defaults: which rules apply depends
-on both, and a guessed market or category produces a confident wrong answer. Ask the
-user, then pass exactly what they confirmed.
+--platform, --market and --vertical are required and have no defaults: which rules
+apply depends on all three, and a guessed platform, market or category produces a
+confident wrong answer. Ask the user, then pass exactly what they confirmed.
+
+Platform policy is covered for TikTok. --platform other runs only the legal checks
+and says that no platform policy was checked.
 
 Rule packs cover English, German and French copy. Copy in another language is
 reported as unchecked rather than passed.
 
 Usage:
-    lint_copy.py --text "Lose 10lbs in 2 weeks, guaranteed!" --market US --vertical weight
-    lint_copy.py --file script.txt --market DE,AT --vertical supplements,beauty
-    lint_copy.py --file caption.txt --market FR --vertical other --creator --aigc --json
-    lint_copy.py --text "Glow Serum" --market GB --vertical beauty --field brand_name
+    lint_copy.py --text "Lose 10lbs in 2 weeks, guaranteed!" --platform tiktok --market US --vertical weight
+    lint_copy.py --file script.txt --platform tiktok --market DE,AT --vertical supplements,beauty
+    lint_copy.py --file caption.txt --platform tiktok --market FR --vertical other --creator --aigc --json
+    lint_copy.py --text "Glow Serum" --platform tiktok --market GB --vertical beauty --field brand_name
+    lint_copy.py --file script.txt --platform other --market DE --vertical food
 """
 
 import argparse
@@ -30,6 +34,14 @@ import unicodedata
 #           NOTE   = spec/limit/hygiene issue
 
 ORDER = {"BLOCK": 0, "REVIEW": 1, "NOTE": 2}
+
+# Platforms whose ad policy this checker covers. "other" is accepted on the command line
+# for any platform not covered yet: it runs the legal checks only.
+#
+# Rules and gates with a `platforms` key are platform policy and run only for those
+# platforms. Rules and gates without one are law and run whatever the platform.
+PLATFORMS = {"tiktok": "TikTok"}
+OTHER = "other"
 
 VERTICALS = {
     "health": "OTC medicines, medical devices, clinics, health services",
@@ -74,8 +86,14 @@ LOGISTICS_BEFORE = (r"\b(?:deliver\w*|ship\w*|arriv\w*|dispatch\w*|ready|cooked|
                     r"reçu\w*|rembours\w*)\W+(?:[\w'’-]+\W+){0,3}$")
 
 RULES = [
+    # =========================================================================
+    # Platform claim rules, derived from TikTok's ad policy. Most platforms have
+    # similar rules, but each one is reviewed when its platform is added rather
+    # than claimed untested, so these stay TikTok-only for now.
+    # =========================================================================
+
     # --- Absolute superiority -------------------------------------------------
-    dict(id="superlative-absolute", severity="BLOCK",
+    dict(id="superlative-absolute", severity="BLOCK", platforms=["tiktok"],
          en=r"(?:#\s?1\b|\bno\.?\s?1\b|\bnumber one\b|"
             r"\bworld'?s (?:best|leading|number one|#\s?1)\b|"
             r"\bthe (?:best|greatest)\b|\bunmatched\b|\bunbeatable\b|"
@@ -86,7 +104,7 @@ RULES = [
             r"\bmeilleur(?:e)? au monde\b|\bimbattable\w*|\binégalé\w*|\bsans égal\b)",
          policy="Misleading and false content — absolute superiority claims",
          fix="Replace with a specific, evidenced fact (review counts, a named test result, a dated award)."),
-    dict(id="superlative-soft", severity="REVIEW",
+    dict(id="superlative-soft", severity="REVIEW", platforms=["tiktok"],
          en=r"(?:\b(?:most effective|most powerful|top[- ]rated|award[- ]winning|revolutionary|"
             r"game[- ]chang(?:er|ing)|perfect|the only \w+ that|"
             r"(?:\w+ ){0,2}ever made|like no other)\b|(?<!the )\bbest\b)",
@@ -99,7 +117,7 @@ RULES = [
          fix="Substantiate or soften. 'Award-winning' needs the named award on the landing page."),
 
     # --- Guarantees and promised outcomes ------------------------------------
-    dict(id="guarantee", severity="BLOCK",
+    dict(id="guarantee", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:guarantee[ds]?|guaranteed results|100%\s*(?:effective|guaranteed|results|works)|"
             r"risk[- ]free|no[- ]risk|fool[- ]?proof|works for everyone|never fails)\b",
          de=r"\b(?:garantiert\w*|ergebnisgarantie|erfolgsgarantie|100\s*%\s*(?:wirksam|garantiert)|"
@@ -113,7 +131,7 @@ RULES = [
                     "Keep it only if that is what it is, and match the terms on the landing page.",
          policy="Misleading and false content — promised results",
          fix="Drop the guarantee. A money-back returns policy is a different, allowable statement."),
-    dict(id="instant-results", severity="BLOCK",
+    dict(id="instant-results", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:instant(?:ly|aneous)?|right away|overnight|in (?:just )?(?:\d+|a few|one|two|three)\s*"
             r"(?:seconds?|minutes?|hours?|days?|weeks?)|immediate results?|see results (?:fast|in)|"
             r"within (?:days?|hours?))\b",
@@ -128,7 +146,7 @@ RULES = [
          fix="Describe the mechanism or usage instead of a timeline to an outcome."),
 
     # --- Medical and health claims -------------------------------------------
-    dict(id="medical-claim", severity="BLOCK",
+    dict(id="medical-claim", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:(?:cure[sd]?|curing|heal(?:s|ed|ing)?|remed(?:y|ies)|miracles?|medically proven|"
             r"doctor[- ]recommended|clinically proven to (?:cure|treat|heal))\b"
             r"(?!\s+(?:meats?|ham|bacon|salmon|sausages?|pork|beef|fish)\b)|"
@@ -146,14 +164,14 @@ RULES = [
             r"stoppe(?:nt)?)\s+" + W + MED_COND_FR + ")",
          policy="Healthcare — no medicinal claims to treat, cure, heal or prevent any condition",
          fix="Describe ingredients, formulation, or sensory experience. Medical claims need a licence."),
-    dict(id="serious-disease", severity="BLOCK",
+    dict(id="serious-disease", severity="BLOCK", platforms=["tiktok"],
          en=r"(?:\b(?:cancer|hiv|covid(?:-?19)?|multiple sclerosis|parkinson'?s|alzheimer'?s|diabetes|"
             r"tumou?rs?)\b|(?-i:\bAIDS\b))",
          de=r"(?:\b(?:krebs|multiple sklerose|diabetes|tumor(?:e|en)?)\b|(?-i:\bAids\b))",
          fr=r"\b(?:cancers?|vih|sida|sclérose en plaques|diabète|tumeurs?)\b",
          policy="Healthcare — cannot imply serious diseases are treatable by the product",
          fix="Remove the disease reference entirely unless the advertiser is a licensed medical provider."),
-    dict(id="regulatory-namedrop", severity="REVIEW",
+    dict(id="regulatory-namedrop", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:fda[- ]approved|ce[- ]certified|clinically proven|scientifically proven|"
             r"dermatologist[- ](?:tested|approved)|lab[- ]tested)\b",
          de=r"\b(?:klinisch (?:getestet|geprüft|bewiesen)|wissenschaftlich (?:bewiesen|belegt|erwiesen)|"
@@ -165,7 +183,7 @@ RULES = [
          fix="Confirm the claim is literally true and documented; 'FDA registered' ≠ 'FDA approved'."),
 
     # --- Weight and body image -----------------------------------------------
-    dict(id="weight-loss-quantified", severity="BLOCK",
+    dict(id="weight-loss-quantified", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:lose|drop|shed|burn|melt(?:s|ing)?(?: away)?)\s+(?:up to\s+)?"
             r"(?:\d+\s*(?:lbs?|pounds?|kgs?|kilos?|inches|sizes?|stone)|weight fast|fat fast|belly fat)\b",
          de=r"\b(?:\d+\s*(?:kg|kilo|pfund|kleidergrößen?)\s+(?:abnehmen|verlieren|weniger|runter)|"
@@ -176,7 +194,7 @@ RULES = [
             r"fai(?:tes|re|s) fondre (?:la graisse|le ventre|vos kilos))\b",
          policy="Weight management — unrealistic weight loss, product-alone claims",
          fix="Remove the quantity and timeline. Describe the product, not the body outcome."),
-    dict(id="body-ideal", severity="BLOCK",
+    dict(id="body-ideal", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:bikini body|beach body|dream body|perfect body|ideal body|summer body|snatched|"
             r"flat (?:belly|stomach|tummy)|slim(?:mer)? (?:legs|waist|thighs)|skinny|"
             r"get your body back|problem areas)\b",
@@ -187,7 +205,7 @@ RULES = [
             r"jambes fines|taille fine|corps d['’]été|zones? à problèmes?)\b",
          policy="Weight management and body image — no ideal body type, no body shaming",
          fix="Talk about fit, fabric, comfort, or performance rather than body shape."),
-    dict(id="body-life-outcome", severity="BLOCK",
+    dict(id="body-life-outcome", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:finally (?:feel|love|be)|feel confident (?:again|in your)|"
             r"(?:more|be) (?:desirable|attractive|popular|successful)|"
             r"love (?:your(?:self)?|your body) again|new you|best version of you)\b",
@@ -198,7 +216,7 @@ RULES = [
             r"la meilleure version de (?:toi|vous)(?:-même)?)\b",
          policy="Body image — cannot link appearance to improved life circumstances or self-image",
          fix="Cut the transformation-of-self framing; describe what the product is and does."),
-    dict(id="effortless", severity="BLOCK",
+    dict(id="effortless", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:no diet(?:ing)? (?:or|and) (?:exercise|workouts?)|"
             r"without (?:diet(?:ing)?|exercise|working out)|easy weight loss|"
             r"lose weight (?:easily|effortlessly|while you sleep)|(?:burn fat|slim down) while you sleep|"
@@ -209,13 +227,14 @@ RULES = [
             r"perdre du poids (?:sans effort|facilement|en dormant))\b",
          policy="Weight management — no claims the product alone works, or that it is easy/guaranteed",
          fix="Remove. This is one of the most consistently enforced rules in the policy set."),
-    dict(id="effortless-generic", severity="REVIEW", verticals=["weight", "supplements", "health"],
+    dict(id="effortless-generic", severity="REVIEW", platforms=["tiktok"],
+         verticals=["weight", "supplements", "health"],
          en=r"\b(?:effortless(?:ly)?|no effort)\b",
          de=r"\b(?:mühelos\w*|ohne anstrengung)\b",
          fr=r"\bsans effort\b",
          policy="Weight management — suggesting results are easy is prohibited for weight and body outcomes",
          fix="Fine for 'effortless to use'; not for anything implying an effortless body or health outcome."),
-    dict(id="before-after", severity="REVIEW",
+    dict(id="before-after", severity="REVIEW", platforms=["tiktok"],
          severity_by_vertical={"health": "BLOCK", "supplements": "BLOCK", "weight": "BLOCK",
                                "cosmetic-procedures": "BLOCK"},
          en=r"\b(?:before (?:and|&|/|\s*-\s*)\s*after|before/after|b&a|my transformation|"
@@ -229,7 +248,7 @@ RULES = [
          fix="Avoid entirely for health, supplement, weight and body products."),
 
     # --- Financial ------------------------------------------------------------
-    dict(id="financial-exaggerated", severity="BLOCK",
+    dict(id="financial-exaggerated", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:get rich|getting rich|financial freedom|passive income|"
             r"(?:double|triple|10x|100x) your (?:money|investment|income)|"
             r"turn \$?\d+ into|make \$?\d+[kK]?\s*(?:a|per|/)\s*(?:day|week|month)|"
@@ -243,7 +262,8 @@ RULES = [
             r"quitte[rz]? (?:ton|votre) (?:travail|job))\b",
          policy="Financial services / deceptive practices — exaggerated financial claims, get-rich-quick",
          fix="Remove. Income and return claims are prohibited even when historically accurate."),
-    dict(id="financial-disclosure-missing", severity="REVIEW", verticals=["finance", "crypto"], once=True,
+    dict(id="financial-disclosure-missing", severity="REVIEW", platforms=["tiktok"],
+         verticals=["finance", "crypto"], once=True,
          en=r"\b(?:loan|credit|apr|interest|invest(?:ing|ment)?|trading|crypto|bitcoin|"
             r"portfolio|returns?|shares?|stocks?)\b",
          de=r"\b(?:kredit\w*|darlehen|zins\w*|effektivzins|jahreszins|investier\w*|geldanlage|"
@@ -254,7 +274,7 @@ RULES = [
          fix="Add the required risk warning / APR / representative example, legible on screen."),
 
     # --- Manufactured urgency and clickbait -----------------------------------
-    dict(id="false-urgency", severity="REVIEW",
+    dict(id="false-urgency", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:only \d+ (?:left|remaining|spots?|seats?)|last chance|hurry|act now|"
             r"ends (?:today|tonight|in \d+)|limited spots?|almost gone|selling out fast|"
             r"don'?t miss out|final hours?)\b",
@@ -266,7 +286,7 @@ RULES = [
             r"presque épuisé\w*|ne (?:le )?ratez pas|dernières heures)\b",
          policy="Deceptive practices — manufactured urgency is misleading if not literally true",
          fix="Keep only if verifiably true and reflected on the landing page."),
-    dict(id="clickbait-interaction", severity="REVIEW",
+    dict(id="clickbait-interaction", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:don'?t scroll|stop scrolling|tap (?:here|to reveal|the x)|click here|"
             r"you won'?t believe|doctors hate|this one (?:trick|weird))\b",
          de=r"\b(?:nicht (?:weiter)?scrollen|hör auf zu scrollen|hier (?:klicken|tippen)|"
@@ -277,7 +297,7 @@ RULES = [
          fix="Write a hook that states the value instead of withholding it."),
 
     # --- TikTok brand ---------------------------------------------------------
-    dict(id="tiktok-brand", severity="BLOCK",
+    dict(id="tiktok-brand", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:tiktok\s*(?:bestseller|famous|made me buy|shop)|as seen on tiktok|"
             r"viral on tiktok|tiktok'?s? (?:favou?rite|#\s?1)|bytedance)\b",
          de=r"\b(?:bekannt (?:aus|von) tiktok|viral auf tiktok|tiktok hat mich)\b",
@@ -286,14 +306,14 @@ RULES = [
          fix="Remove all TikTok references from creative and landing page."),
 
     # --- Adult / suggestive ---------------------------------------------------
-    dict(id="adult-explicit", severity="BLOCK",
+    dict(id="adult-explicit", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:nsfw|xxx|porn\w*|horny|one night stand|casual sex|sugar (?:daddy|mommy|baby|dating)|"
             r"cam ?girls?|escorts?|nudes)\b",
          de=r"\b(?:porno\w*|seitensprung\w*|sexdate\w*|sextreff\w*|nacktbilder)\b",
          fr=r"\b(?:porno\w*|plans? culs?|rencontres? d['’]un soir|aventure extraconjugale)\b",
          policy="Adult content — sexually explicit text, casual-sex dating and infidelity are prohibited",
          fix="Remove. Dating apps framed around casual sex cannot be advertised at all."),
-    dict(id="adult-suggestive", severity="REVIEW",
+    dict(id="adult-suggestive", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:nude|naked|sexy|seductive|sensual|hook ?ups?)\b",
          de=r"\b(?:nackt\w*|verführerisch\w*|geil\w*)\b",
          fr=r"\b(?:nue?s?|séduisant\w*|sensuel\w*|coquin\w*)\b",
@@ -301,7 +321,7 @@ RULES = [
          fix="Fine as a colour or product name ('nude lipstick', 'naked cake'); not as innuendo."),
 
     # --- Prohibited products flagged from copy --------------------------------
-    dict(id="prohibited-product", severity="BLOCK",
+    dict(id="prohibited-product", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:vape[sr]?|vaping|e-?cig(?:arette)?s?|nicotine|tobacco|cigarettes?|"
             r"payday loans?|bail bonds?|credit repair|pyramid (?:scheme|selling)|mlm|"
             r"kratom|delta[- ]?8|thc)\b",
@@ -317,13 +337,13 @@ RULES = [
                     "therapy is a medicine under the healthcare rules. Confirm which this is.",
          policy="Dangerous products / financial services — globally prohibited categories",
          fix="This product category cannot be advertised on TikTok. Check restricted-verticals.md."),
-    dict(id="crypto", severity="REVIEW",
+    dict(id="crypto", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:crypto(?:currency)?|bitcoin|btc|ethereum|nfts?|web3|token sale|ico|defi|airdrop)\b",
          de=r"\b(?:krypto\w*)\b",
          fr=r"\b(?:cryptomonnaies?|crypto-?actifs?)\b",
          policy="Financial services — virtual currencies broadly restricted, market-specific approval needed",
          fix="Treat as prohibited unless the market and licensing are confirmed with a TikTok rep."),
-    dict(id="real-money-gaming", severity="REVIEW",
+    dict(id="real-money-gaming", severity="REVIEW", platforms=["tiktok"],
          en=r"\b(?:win real (?:money|cash)|real[- ]money (?:games?|prizes?)|cash prizes?|"
             r"earn (?:real )?money (?:by )?playing|withdraw (?:your )?winnings|play (?:to|and) earn)\b",
          de=r"\b(?:echtgeld\w*|um echtes geld|bargeld gewinnen|geld verdienen mit spielen|"
@@ -334,7 +354,7 @@ RULES = [
          fix="Confirm the product is licensed and TikTok-approved for this market, or remove the claim."),
 
     # --- Minors ---------------------------------------------------------------
-    dict(id="teen-pressure", severity="BLOCK",
+    dict(id="teen-pressure", severity="BLOCK", platforms=["tiktok"],
          en=r"\b(?:ask your (?:mom|dad|parents?|mum)|tell your parents|beg your parents|"
             r"get your parents to buy)\b",
          de=r"\b(?:frag deine (?:eltern|mama|mutter|papa|vater)|sag deinen eltern|überrede deine eltern)\b",
@@ -343,8 +363,9 @@ RULES = [
          fix="Remove; address the purchasing adult directly."),
 
     # =========================================================================
-    # EU / EEA legal layer. These are matters of law, not TikTok policy — an ad
-    # can pass TikTok review and still be unlawful. See references/eu-law.md.
+    # EU / EEA legal layer. These are matters of law, not platform policy, and
+    # run on every platform — an ad can pass ad review and still be unlawful.
+    # See references/law/eu-eea.md.
     # =========================================================================
 
     dict(id="eu-green-generic", severity="BLOCK", markets=["EU"],
@@ -473,11 +494,14 @@ RULES = [
 
 # Market x vertical gates. These fire on what is being sold and where, whatever the copy
 # says. BLOCK gates are findings; PRECONDITION gates list what the advertiser owns.
+#
+# A precondition's text can mix law and platform policy. Then it's a list of parts, each
+# with its own optional `platforms` key, and only the parts that apply are shown.
 PREDICTION_MARKETS = {"CA", "US", "PH", "BO", "EC", "GT", "DO", "PY", "CO", "PA", "PE",
                       "GB", "IE", "DK", "FI", "SE", "IL"}
 
 GATES = [
-    dict(verticals={"pharmacy"}, markets={"FR", "GR", "JP"}, severity="BLOCK",
+    dict(verticals={"pharmacy"}, markets={"FR", "GR", "JP"}, severity="BLOCK", platforms=["tiktok"],
          policy="TikTok healthcare policy — pharmacy advertising is prohibited in France, Greece and Japan",
          fix="Cannot run in this market."),
     dict(verticals={"alcohol"}, markets={"NO"}, severity="BLOCK",
@@ -491,11 +515,12 @@ GATES = [
          policy="Italy — Decreto Dignità (DL 87/2018, art. 9) bans gambling advertising in all media; "
                 "AGCOM's March 2026 guidelines allow only branded responsible-gambling messages",
          fix="Cannot run as a gambling ad. A responsible-gambling message needs Italian legal review."),
-    dict(verticals={"gambling"}, markets={"BR"}, severity="BLOCK",
+    dict(verticals={"gambling"}, markets={"BR"}, severity="BLOCK", platforms=["tiktok"],
          policy="TikTok (Oct 2026) — all online gambling and gambling-information ads are prohibited in "
                 "Brazil. Passive lotteries may be allowed with sales-rep approval (Aug 2026)",
          fix="Cannot run unless this is a licensed passive lottery approved by a TikTok sales rep."),
     dict(verticals={"prediction-markets"}, markets_not=PREDICTION_MARKETS, severity="BLOCK",
+         platforms=["tiktok"],
          policy="TikTok (July 2026) — prediction markets and event contracts are allowed only in CA, US, "
                 "PH, BO, EC, GT, DO, PY, CO, PA, PE, GB, IE, DK, FI, SE and IL",
          fix="Cannot run in this market."),
@@ -504,34 +529,40 @@ GATES = [
                 "aesthetic procedures",
          fix="Cannot run as creator or influencer content in France."),
 
-    dict(verticals={"health"}, severity="PRECONDITION",
+    dict(verticals={"health"}, severity="PRECONDITION", platforms=["tiktok"],
          text="OTC medicines and medical devices need local regulator approval on file (CE/UKCA marking "
               "where relevant) and 18+ targeting. Prescription medicines only in CA, US and NZ (NZ 25+). "
               "No before/after for OTC medicines."),
-    dict(verticals={"pharmacy"}, severity="PRECONDITION",
+    dict(verticals={"pharmacy"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Pharmacy licence certification on file and 18+ targeting."),
-    dict(verticals={"supplements"}, severity="PRECONDITION",
+    dict(verticals={"supplements"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Regulatory approval where required and 18+ targeting. No before/after. Some markets require "
               "a health-risk disclosure in the local language. Weight-loss supplements: see weight."),
-    dict(verticals={"weight"}, severity="PRECONDITION",
+    dict(verticals={"weight"}, severity="PRECONDITION", platforms=["tiktok"],
          text="18+ targeting. Weight-loss supplements, meal replacements and weight-loss surgery are "
               "allowed only in the markets listed in restricted-verticals.md (2026 changes), with "
               "sales-rep approval and local licences."),
     dict(verticals={"cosmetic-procedures"}, markets={"US", "CA"}, severity="PRECONDITION",
+         platforms=["tiktok"],
          text="Allowed since March 2026 with TikTok sales-rep approval, a licensed provider, age targeting, "
               "clear disclosure of medical risks and recovery times, and no exaggerated before/after "
               "imagery or body shaming."),
     dict(verticals={"cosmetic-procedures"}, markets_not={"US", "CA"}, severity="PRECONDITION",
+         platforms=["tiktok"],
          text="Surgery and invasive procedures (fillers, rhinoplasty) are prohibited in most markets "
               "outside the US and Canada; weight-loss surgery only where listed in restricted-verticals.md. "
               "Non-invasive aesthetic services need regulatory approval, 18+ and sales-rep approval."),
     dict(verticals={"beauty"}, severity="PRECONDITION",
-         text="No medical claims (treating, curing or preventing a condition) without a medical licence. "
-              "EU: hold a claim-substantiation file under Reg. (EU) 655/2013."),
+         text=[dict(platforms=["tiktok"],
+                    text="No medical claims (treating, curing or preventing a condition) without a medical "
+                         "licence."),
+               dict(text="EU: hold a claim-substantiation file under Reg. (EU) 655/2013.")]),
     dict(verticals={"food"}, severity="PRECONDITION",
-         text="EU: only authorised health claims (Reg. (EC) 1924/2006); HFSS limits around children's "
-              "content. Infant formula for 0–24 months is prohibited in most markets."),
-    dict(verticals={"alcohol"}, severity="PRECONDITION",
+         text=[dict(text="EU: only authorised health claims (Reg. (EC) 1924/2006); HFSS limits around "
+                         "children's content."),
+               dict(platforms=["tiktok"],
+                    text="Infant formula for 0–24 months is prohibited in most markets.")]),
+    dict(verticals={"alcohol"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Only in markets where TikTok allows alcohol, with licences, sales-rep approval where "
               "required, and age targeting at or above the legal drinking age. Nobody under 25 on camera. "
               "State the ABV and a responsible-drinking message on the ad and landing page. No discounts "
@@ -539,14 +570,14 @@ GATES = [
     dict(verticals={"alcohol"}, markets={"FR"}, severity="PRECONDITION",
          text="France — Loi Évin positive list: only expressly permitted content (origin, composition, "
               "ABV, production method) and a health warning."),
-    dict(verticals={"finance"}, severity="PRECONDITION",
+    dict(verticals={"finance"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Licensed by local regulators, 18+ targeting, and legible disclosure of APR, fees, repayment "
               "terms and risk warnings. 2026 carve-outs (CFDs, precious metals, FX, investment advice) "
               "apply only in the markets listed in restricted-verticals.md."),
-    dict(verticals={"crypto"}, severity="PRECONDITION",
+    dict(verticals={"crypto"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Treat as prohibited until a TikTok sales rep confirms it for this market. 2026 carve-outs: "
               "digital-currency advisory in GB and IE, crypto-mining devices in US and CA."),
-    dict(verticals={"gambling"}, severity="PRECONDITION",
+    dict(verticals={"gambling"}, severity="PRECONDITION", platforms=["tiktok"],
          text="TikTok certification and a local licence, age targeting, nobody underage on camera. "
               "Online casino ads were added in July 2026 for AT, BG, CH, CZ, DE, DK, ES, GR, HR, HU, IE, "
               "IL, LU, NL, PT, RO, SE, SI and SK; national advertising limits still apply."),
@@ -554,22 +585,25 @@ GATES = [
          text="Spain — Royal Decree 958/2020 limits gambling advertising timing, content and promotional "
               "offers; get Spanish legal review."),
     dict(verticals={"prediction-markets"}, markets=PREDICTION_MARKETS, severity="PRECONDITION",
+         platforms=["tiktok"],
          text="Sales-rep approval, age targeting and clear disclaimers."),
-    dict(verticals={"gaming"}, severity="PRECONDITION",
+    dict(verticals={"gaming"}, severity="PRECONDITION", platforms=["tiktok"],
          text="Footage must show the real game and its real mechanics. Real-money, rewarded gaming, "
               "social casino and loot boxes fall under the gambling and games rules and need approval."),
-    dict(verticals={"dating"}, severity="PRECONDITION",
+    dict(verticals={"dating"}, severity="PRECONDITION", platforms=["tiktok"],
          text="18+ targeting. No casual-sex or sugar-dating framing. Dating and live-chat apps are not "
               "allowed in every market; confirm this market with a TikTok sales rep."),
 ]
 
+# Per platform. field: (min_latin, max_latin, allow_emoji, banned_chars)
 FIELD_LIMITS = {
-    # field: (min_latin, max_latin, allow_emoji, banned_chars)
-    "brand_name":  (2, 20, False, ""),
-    "app_name":    (4, 40, False, ""),
-    "description": (1, 100, False, "{}#"),
-    "caption":     (1, 100, True, ""),
-    "account_name": (1, 20, True, ""),
+    "tiktok": {
+        "brand_name":  (2, 20, False, ""),
+        "app_name":    (4, 40, False, ""),
+        "description": (1, 100, False, "{}#"),
+        "caption":     (1, 100, True, ""),
+        "account_name": (1, 20, True, ""),
+    },
 }
 
 EU_EEA = {
@@ -652,6 +686,28 @@ def parse_markets(value):
     return markets
 
 
+def parse_platforms(value):
+    """Turn '--platform tiktok,other' into {'tiktok', 'other'}. Rejects platforms that aren't listed."""
+    platforms = {p.strip().lower() for p in re.split(r"[,/\s]+", value) if p.strip()}
+    bad = sorted(platforms - set(PLATFORMS) - {OTHER})
+    if bad or not platforms:
+        raise argparse.ArgumentTypeError(
+            f"unknown platform: {', '.join(bad) or repr(value)}. Covered: {', '.join(PLATFORMS)}. For any "
+            f"other platform (Meta, Google Ads, YouTube, ...) pass '{OTHER}', which runs the legal checks "
+            "only. Ask the user which platform(s) the ad will run on.")
+    return platforms
+
+
+def platform_names(platforms):
+    """'TikTok', or 'TikTok and Meta': the covered platforms among those selected."""
+    return " and ".join(PLATFORMS[p] for p in sorted(platforms) if p in PLATFORMS)
+
+
+def applies(item, platforms):
+    """True for law (no `platforms` key) and for platform policy of a selected platform."""
+    return "platforms" not in item or bool(set(item["platforms"]) & platforms)
+
+
 def parse_verticals(value):
     verticals = {v.strip().lower() for v in value.split(",") if v.strip()}
     bad = sorted(verticals - set(VERTICALS))
@@ -705,9 +761,11 @@ def finding(id, severity, matched, ctx, policy, fix):
     return dict(id=id, severity=severity, matched=matched, context=ctx, policy=policy, fix=fix)
 
 
-def match_rules(text, verticals, scopes):
+def match_rules(text, verticals, scopes, platforms):
     findings = []
     for rule in RULES:
+        if not applies(rule, platforms):
+            continue
         if rule.get("verticals") and not (set(rule["verticals"]) & verticals):
             continue
         if rule.get("markets") and not (set(rule["markets"]) & scopes):
@@ -799,12 +857,12 @@ def check_creator_disclosure(text, scopes):
     return findings
 
 
-def check_gates(verticals, scopes, creator=False):
+def check_gates(verticals, scopes, platforms, creator=False):
     """Market x vertical gates: (blocking findings, preconditions)."""
     countries = scopes - {"EU", "EEA"}
     blocks, preconditions = [], []
     for gate in GATES:
-        if not (gate["verticals"] & verticals):
+        if not applies(gate, platforms) or not (gate["verticals"] & verticals):
             continue
         if gate.get("creator") and not creator:
             continue
@@ -821,19 +879,26 @@ def check_gates(verticals, scopes, creator=False):
             blocks.append(finding("market-vertical-gate", "BLOCK", f"{label} in {', '.join(hit)}", "—",
                                   gate["policy"], gate["fix"]))
         else:
+            text = gate["text"]
+            if not isinstance(text, str):
+                text = " ".join(part["text"] for part in text if applies(part, platforms))
+            if not text:
+                continue
             where = "" if hit == ["all"] else f" ({', '.join(hit)})"
-            preconditions.append(f"{label}{where}: {gate['text']}")
+            preconditions.append(f"{label}{where}: {text}")
     return blocks, preconditions
 
 
-def lint(text, verticals, field=None, aigc=False, scopes=None, creator=False):
+def lint(text, verticals, platforms, field=None, aigc=False, scopes=None, creator=False):
     scopes = scopes or set()
     countries = scopes - {"EU", "EEA"}
-    findings = match_rules(text, verticals, scopes)
+    findings = match_rules(text, verticals, scopes, platforms)
 
     # Field-level spec checks
-    if field and field in FIELD_LIMITS:
-        lo, hi, allow_emoji, banned = FIELD_LIMITS[field]
+    for platform in sorted(platforms):
+        if field not in FIELD_LIMITS.get(platform, {}):
+            continue
+        lo, hi, allow_emoji, banned = FIELD_LIMITS[platform][field]
         n = len(text.strip())
         if n < lo or n > hi:
             findings.append(finding(
@@ -848,33 +913,36 @@ def lint(text, verticals, field=None, aigc=False, scopes=None, creator=False):
                 findings.append(finding("field-banned-char", "NOTE", ch, text[:60],
                                         f"Spec — '{ch}' is not supported in {field}", f"Remove '{ch}'."))
 
-    # Cheap hygiene proxies — spelling/grammar errors are an enumerated rejection reason
-    for m in re.finditer(r"\b(\w+)\s+\1\b", text, re.IGNORECASE):
-        findings.append(finding(
-            "doubled-word", "NOTE", m.group(0), context(text, m.start(), m.end()),
-            "Ad format — caption and text must be free of spelling and grammatical mistakes",
-            "Proofread; duplicated word."))
-    if re.search(r"[A-Z]{6,}", text) and field != "brand_name":
-        findings.append(finding(
-            "shouting", "NOTE", "ALL CAPS run", text[:60],
-            "Ad quality — excessive capitalisation reads as low-quality to review",
-            "Use sentence case for body copy; reserve caps for short emphasis."))
+    # Cheap hygiene proxies — spelling/grammar errors are an enumerated rejection reason.
+    # TikTok-only for now, like the claim rules.
+    if "tiktok" in platforms:
+        for m in re.finditer(r"\b(\w+)\s+\1\b", text, re.IGNORECASE):
+            findings.append(finding(
+                "doubled-word", "NOTE", m.group(0), context(text, m.start(), m.end()),
+                "Ad format — caption and text must be free of spelling and grammatical mistakes",
+                "Proofread; duplicated word."))
+        if re.search(r"[A-Z]{6,}", text) and field != "brand_name":
+            findings.append(finding(
+                "shouting", "NOTE", "ALL CAPS run", text[:60],
+                "Ad quality — excessive capitalisation reads as low-quality to review",
+                "Use sentence case for body copy; reserve caps for short emphasis."))
 
     # Language coverage — a clean result on copy we can't read is not a pass
     lang = detect_language(text)
     if lang and lang not in SUPPORTED_LANGUAGES:
+        refs = [f"references/platforms/{p}/claims-and-copy.md" for p in sorted(platforms) if p in PLATFORMS]
         findings.append(finding(
             "unsupported-language", "REVIEW", LANGUAGE_NAMES[lang], text[:60],
             "Linter coverage — rule packs exist for English, German and French only",
             f"This copy looks {LANGUAGE_NAMES[lang]}, so most of it was NOT checked. Have a native "
-            "speaker review it against references/claims-and-copy.md and references/eu-law.md."))
+            f"speaker review it against {' and '.join(refs + ['references/law/eu-eea.md'])}."))
     if "FR" in countries and lang == "en":
         findings.append(finding(
             "fr-language", "REVIEW", "English copy for FR", text[:60],
             "France — Loi Toubon: advertising must be in French; foreign-language text needs a French "
             "translation that is as legible and audible as the original",
-            "Write the French version, and have a native speaker check it — TikTok also rejects "
-            "spelling and grammar errors."))
+            "Write the French version, and have a native speaker check it"
+            + (" — TikTok also rejects spelling and grammar errors." if "tiktok" in platforms else ".")))
 
     if aigc:
         disclosed = re.search(r"\b(?:ai[- ]generated|generated (?:with|by) ai|ai[- ]created|"
@@ -884,7 +952,7 @@ def lint(text, verticals, field=None, aigc=False, scopes=None, creator=False):
                               r"generiert)|généré(?:e|s|es)? par (?:l['’])?ia|créé(?:e|s|es)? (?:avec|par) "
                               r"(?:l['’])?ia|images? virtuelles?|voix (?:de synthèse|générée par (?:l['’])?ia))\b",
                               text, re.IGNORECASE)
-        if not disclosed:
+        if not disclosed and "tiktok" in platforms:
             findings.append(finding(
                 "aigc-undisclosed", "BLOCK", "(no disclosure found)", "—",
                 "Misleading content — AIGC requires the AIGC label or a clear visible disclaimer",
@@ -898,12 +966,13 @@ def lint(text, verticals, field=None, aigc=False, scopes=None, creator=False):
                 "deceive, and to non-EU advertisers targeting EU audiences",
                 "Disclosure must be clear, distinguishable and given no later than first exposure: "
                 "visible on screen for visual content, audible where audio is the relevant mode. "
-                "A campaign-level setting is not disclosure. Stricter than TikTok's own AIGC rule."))
+                "A campaign-level setting is not disclosure."
+                + (" Stricter than TikTok's own AIGC rule." if "tiktok" in platforms else "")))
 
     if creator and "EU" in scopes:
         findings.extend(check_creator_disclosure(text, scopes))
 
-    blocks, _ = check_gates(verticals, scopes, creator)
+    blocks, _ = check_gates(verticals, scopes, platforms, creator)
     findings.extend(blocks)
 
     findings.sort(key=lambda f: ORDER[f["severity"]])
@@ -912,12 +981,15 @@ def lint(text, verticals, field=None, aigc=False, scopes=None, creator=False):
 
 def main():
     p = argparse.ArgumentParser(
-        description="Lint TikTok ad copy against policy claim patterns and EU advertising law.",
-        epilog="--market and --vertical are required. Ask the user which countries the ad will run in "
-               "and what is being sold; never guess.")
+        description="Lint ad copy against platform ad-policy claim patterns and EU advertising law.",
+        epilog="--platform, --market and --vertical are required. Ask the user which platform(s) and "
+               "countries the ad will run in and what is being sold; never guess.")
     src = p.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="Copy to lint.")
     src.add_argument("--file", help="File containing the copy (script, caption, VO).")
+    p.add_argument("--platform", type=parse_platforms,
+                   help=f"REQUIRED. Ad platform(s), comma-separated: {', '.join(PLATFORMS)}, or '{OTHER}' "
+                        "for any platform not covered yet ('other' runs the legal checks only).")
     p.add_argument("--market", type=parse_markets,
                    help="REQUIRED. Target market(s) as ISO country codes, e.g. US, DE, 'DE,FR', or EU/EEA. "
                         "EU/EEA codes activate the EU legal rule pack.")
@@ -926,21 +998,34 @@ def main():
                         + "; ".join(f"{k} ({v})" for k, v in VERTICALS.items()))
     p.add_argument("--creator", action="store_true",
                    help="Creative is creator/UGC/Spark content — checks influencer disclosure.")
-    p.add_argument("--field", choices=sorted(FIELD_LIMITS), help="Apply this field's spec limits.")
+    p.add_argument("--field", choices=sorted(set().union(*FIELD_LIMITS.values())),
+                   help="Apply this field's spec limits for the selected platform(s).")
     p.add_argument("--aigc", action="store_true", help="Creative uses AI-generated media.")
     p.add_argument("--json", action="store_true", help="Machine-readable output.")
     a = p.parse_args()
 
-    missing = [flag for flag, val in (("--market", a.market), ("--vertical", a.vertical)) if not val]
+    missing = [flag for flag, val in (("--platform", a.platform), ("--market", a.market),
+                                      ("--vertical", a.vertical)) if not val]
     if missing:
-        p.error(f"{' and '.join(missing)} required. Don't assume: ask the user which countries the ad "
-                "will run in and what is being sold, then pass exactly what they confirmed.")
+        p.error(f"{', '.join(missing)} required. Don't assume: ask the user which platform(s) and countries "
+                "the ad will run in and what is being sold, then pass exactly what they confirmed.")
+    if a.field and not any(a.field in FIELD_LIMITS.get(pl, {}) for pl in a.platform):
+        p.error(f"--field {a.field}: no field limits for the selected platform(s). Drop --field.")
 
     text = a.text if a.text else open(a.file, encoding="utf-8").read()
     scopes = market_scopes(a.market)
     countries = a.market - {"EU", "EEA"}
-    findings = lint(text, a.vertical, field=a.field, aigc=a.aigc, scopes=scopes, creator=a.creator)
-    _, preconditions = check_gates(a.vertical, scopes, a.creator)
+    checked = platform_names(a.platform)
+    findings = lint(text, a.vertical, a.platform, field=a.field, aigc=a.aigc, scopes=scopes,
+                    creator=a.creator)
+    _, preconditions = check_gates(a.vertical, scopes, a.platform, a.creator)
+
+    platform_notes = []
+    if OTHER in a.platform:
+        platform_notes.append(
+            f"Platform policy was NOT checked for '{OTHER}': only the legal checks ran for it. This "
+            f"checker covers the ad policies of {platform_names(PLATFORMS)} only. Check the platform's own "
+            "ad policies before launch, and don't treat a clean result as platform approval.")
 
     notes = [f"{c}: {MARKET_NOTES[c]}" for c in sorted(countries & set(MARKET_NOTES))]
     if a.market & {"EU", "EEA"} and not countries & EU_EEA:
@@ -948,42 +1033,53 @@ def main():
                      "materially (FR, DE, IT, SE, NO, GR, ES, LT each add their own). Narrow it down.")
     no_legal_pack = sorted(countries - EU_EEA)
     if no_legal_pack:
-        notes.append(f"No legal rule pack for {', '.join(no_legal_pack)}. Findings for "
-                     f"{'this market' if len(no_legal_pack) == 1 else 'these markets'} cover TikTok "
-                     "platform policy only, not local advertising law — a clean result is not a legal "
-                     "clearance.")
+        where = "this market" if len(no_legal_pack) == 1 else "these markets"
+        if checked:
+            notes.append(f"No legal rule pack for {', '.join(no_legal_pack)}. Findings for {where} cover "
+                         f"{checked} platform policy only, not local advertising law — a clean result is "
+                         "not a legal clearance.")
+        else:
+            notes.append(f"No legal rule pack for {', '.join(no_legal_pack)}, and no platform policy was "
+                         f"checked. Almost nothing specific to {where} was checked — a clean result means "
+                         "very little.")
 
     lang = detect_language(text)
+    platform_label = ", ".join(PLATFORMS.get(pl, f"{OTHER} (policy not checked)")
+                               for pl in sorted(a.platform, key=lambda pl: (pl == OTHER, pl)))
     market_label = ",".join(sorted(a.market))
     vertical_label = ",".join(sorted(a.vertical))
     if a.json:
-        print(json.dumps(dict(market=sorted(a.market), scopes=sorted(scopes), vertical=sorted(a.vertical),
-                              language=lang, field=a.field, findings=findings,
-                              preconditions=preconditions, market_notes=notes), indent=2,
-                         ensure_ascii=False))
+        print(json.dumps(dict(platforms=sorted(a.platform), market=sorted(a.market), scopes=sorted(scopes),
+                              vertical=sorted(a.vertical), language=lang, field=a.field, findings=findings,
+                              preconditions=preconditions, platform_notes=platform_notes,
+                              market_notes=notes), indent=2, ensure_ascii=False))
     else:
         counts = {s: sum(1 for f in findings if f["severity"] == s) for s in ORDER}
         eu = " · EU legal pack ACTIVE" if "EU" in scopes else ""
         lang_label = LANGUAGE_NAMES.get(lang, "undetermined")
-        print(f"\nTikTok copy lint — market: {market_label} · vertical: {vertical_label}"
+        print(f"\nAd copy lint — platform: {platform_label} · market: {market_label} · "
+              f"vertical: {vertical_label}"
               + (f" · field: {a.field}" if a.field else "") + f" · language: {lang_label}" + eu)
         print(f"{counts['BLOCK']} block · {counts['REVIEW']} review · {counts['NOTE']} note\n")
         if not findings:
-            print("  No flagged patterns. Still check claims against claims-and-copy.md —")
-            print("  the linter catches known phrasings, not every policy problem.\n")
+            print("  No flagged patterns. Still check claims against the reference files —")
+            print("  the linter catches known phrasings, not every policy or legal problem.\n")
         for f in findings:
             print(f"  [{f['severity']}] {f['id']}: \"{f['matched']}\"")
             print(f"      context: {f['context']}")
             print(f"      policy:  {f['policy']}")
             print(f"      fix:     {f['fix']}\n")
-        print("  Spelling and grammar are an enumerated rejection reason — proofread separately.")
+        if "tiktok" in a.platform:
+            print("  Spelling and grammar are an enumerated rejection reason — proofread separately.")
+        for n in platform_notes:
+            print(f"\n  [platform] {n}")
         for pre in preconditions:
             print(f"\n  [precondition] {pre}")
         for n in notes:
             print(f"\n  [market] {n}")
         if "EU" in scopes:
-            print("\n  EU findings are matters of LAW, not TikTok policy — passing ad review does not")
-            print("  resolve them. See references/eu-law.md. Not legal advice.")
+            print("\n  EU findings are matters of LAW, not platform policy — passing ad review does not")
+            print("  resolve them. See references/law/eu-eea.md. Not legal advice.")
         print()
 
     return 1 if any(f["severity"] == "BLOCK" for f in findings) else 0

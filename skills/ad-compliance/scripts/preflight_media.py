@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight a rendered TikTok ad asset against TikTok's technical specs.
+"""Preflight a rendered ad asset against the ad platform's technical specs.
 
 Checks what a parser can check better than a person: resolution, aspect ratio,
 duration, bitrate, file size, audio presence, and how much of the runtime is
@@ -9,13 +9,16 @@ It also renders a safe-zone overlay onto a real frame, because text placement is
 the one thing that genuinely needs a human eye — TikTok's caption block, CTA
 button and icon rail cover more of the frame than people expect.
 
+--platform is required and has no default: specs differ by platform. Only TikTok's
+specs are bundled today.
+
 Requires ffmpeg and ffprobe on PATH.
 
 Usage:
-    preflight_media.py ad.mp4
-    preflight_media.py ad.mp4 --format in-feed --overlay out/safezone.png
-    preflight_media.py banner.jpg --format image
-    preflight_media.py ad.mp4 --json
+    preflight_media.py ad.mp4 --platform tiktok
+    preflight_media.py ad.mp4 --platform tiktok --format in-feed --overlay out/safezone.png
+    preflight_media.py banner.jpg --platform tiktok --format image
+    preflight_media.py ad.mp4 --platform tiktok --json
 """
 
 import argparse
@@ -26,21 +29,44 @@ import shutil
 import subprocess
 import sys
 
-# Safe-zone margins as fractions of frame, from the 1080x1920 working envelope in
-# references/specs-and-safe-zones.md. Practitioner figures, deliberately conservative;
-# TikTok's own downloadable templates are authoritative when the stakes are high.
-SAFE = dict(top=200 / 1920, bottom=500 / 1920, left=64 / 1080,
-            right=140 / 1080, right_lower=300 / 1080)
-
 VIDEO_EXT = {".mp4", ".mov", ".mpeg", ".mpg", ".3gp", ".avi", ".m4v", ".webm", ".mkv"}
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
-ALLOWED_VIDEO_CONTAINERS = {"mp4", "mov", "mpeg", "3gp", "avi"}
-ALLOWED_IMAGE_FORMATS = {"jpg", "jpeg", "png"}
+# Specs per platform, from references/platforms/<platform>/specs-and-safe-zones.md.
+# The first format is the default.
+SPECS = {
+    "tiktok": dict(
+        name="TikTok",
+        formats=["in-feed", "spark", "topview", "image"],
+        video_containers=["mp4", "mov", "mpeg", "3gp", "avi"],
+        image_formats=["jpg", "jpeg", "png"],
+        ratios={"9:16": 9 / 16, "1:1": 1.0, "16:9": 16 / 9},
+        recommended=("9:16", 1080, 1920),
+        min_dims={"9:16": (540, 960), "1:1": (640, 640), "16:9": (960, 540)},
+        min_dims_image={"9:16": (720, 1280), "1:1": (640, 640), "16:9": (1280, 720)},
+        # Policy says 5–60s; the spec sheet accepts up to 10 minutes.
+        duration=(5, 60),
+        over_duration="The spec sheet accepts up to 10 min, so it will upload, but it carries review risk",
+        uncapped_formats={"spark": "Spark Ads have no duration restriction"},
+        max_video_mb=500,
+        max_image_mb=100,
+        min_bitrate_kbps=516,
+        min_audio_kbps=64,
+        max_frozen=0.5,
+        # Safe-zone margins as fractions of frame, from the 1080x1920 working envelope.
+        # Practitioner figures, deliberately conservative; TikTok's own downloadable
+        # templates are authoritative when the stakes are high.
+        safe=dict(top=200 / 1920, bottom=500 / 1920, left=64 / 1080,
+                  right=140 / 1080, right_lower=300 / 1080),
+        policy=dict(video="Video ad specs", image="Image ad specs", format="Ad format and functionality"),
+    ),
+}
 
-RATIOS = {"9:16": 9 / 16, "1:1": 1.0, "16:9": 16 / 9}
-MIN_DIMS = {"9:16": (540, 960), "1:1": (640, 640), "16:9": (960, 540)}
-MIN_DIMS_IMAGE = {"9:16": (720, 1280), "1:1": (640, 640), "16:9": (1280, 720)}
+
+def listing(items, last="or"):
+    """['9:16', '1:1', '16:9'] -> '9:16, 1:1 or 16:9'."""
+    items = list(items)
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} {last} {items[-1]}"
 
 
 class Check:
@@ -68,10 +94,10 @@ def probe(path):
     return json.loads(r.stdout)
 
 
-def classify_ratio(w, h):
+def classify_ratio(w, h, ratios):
     """Return (label, actual_ratio, deviation) for the closest standard ratio."""
     actual = w / h
-    label, dev = min(((k, abs(actual - v) / v) for k, v in RATIOS.items()), key=lambda t: t[1])
+    label, dev = min(((k, abs(actual - v) / v) for k, v in ratios.items()), key=lambda t: t[1])
     return label, actual, dev
 
 
@@ -116,10 +142,11 @@ def audio_peak_db(path):
     return float("-inf") if m.group(1) == "-inf" else float(m.group(1))
 
 
-def check_video(path, info, fmt, c):
+def check_video(path, info, fmt, spec, c):
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     a = next((s for s in info["streams"] if s["codec_type"] == "audio"), None)
     f = info["format"]
+    pol = spec["policy"]
 
     if not v:
         c.fail("video stream", "no video stream found")
@@ -132,106 +159,106 @@ def check_video(path, info, fmt, c):
     containers = set(f.get("format_name", "").split(","))
 
     # Container
-    if containers & ALLOWED_VIDEO_CONTAINERS or containers & {"mov", "m4a", "3gp", "mj2"}:
+    if containers & set(spec["video_containers"]) or containers & {"mov", "m4a", "3gp", "mj2"}:
         c.ok("container", f.get("format_name", "?"))
     else:
-        c.fail("container", f"{f.get('format_name')} — accepted: .mp4, .mov, .mpeg, .3gp, .avi",
-               "Video ad specs")
+        accepted = ", ".join("." + x for x in spec["video_containers"])
+        c.fail("container", f"{f.get('format_name')} — accepted: {accepted}", pol["video"])
 
     # Resolution and aspect ratio
-    label, actual, dev = classify_ratio(w, h)
+    rec_label, rec_w, rec_h = spec["recommended"]
+    label, actual, dev = classify_ratio(w, h, spec["ratios"])
     if dev <= 0.02:
-        note = " (recommended)" if label == "9:16" else ""
+        note = " (recommended)" if label == rec_label else ""
         c.ok("aspect ratio", f"{w}×{h} ≈ {label}{note}")
-        if label != "9:16":
-            c.warn("orientation", f"{label} is accepted but 9:16 vertical is recommended and "
-                                  "performs better in feed", "Video ad specs")
-        mw, mh = MIN_DIMS[label]
+        if label != rec_label:
+            c.warn("orientation", f"{label} is accepted but {rec_label} vertical is recommended and "
+                                  "performs better in feed", pol["video"])
+        mw, mh = spec["min_dims"][label]
         if w >= mw and h >= mh:
             c.ok("resolution", f"{w}×{h} (minimum {mw}×{mh})")
         else:
-            c.fail("resolution", f"{w}×{h} is below the {mw}×{mh} minimum for {label}",
-                   "Video ad specs")
-        if label == "9:16" and (w < 1080 or h < 1920):
-            c.warn("resolution", f"{w}×{h} meets the minimum but 1080×1920 is recommended")
+            c.fail("resolution", f"{w}×{h} is below the {mw}×{mh} minimum for {label}", pol["video"])
+        if label == rec_label and (w < rec_w or h < rec_h):
+            c.warn("resolution", f"{w}×{h} meets the minimum but {rec_w}×{rec_h} is recommended")
     else:
-        c.fail("aspect ratio", f"{w}×{h} ({actual:.3f}) is not 9:16, 1:1 or 16:9 — "
-                               "non-standard ratios get letterboxed or rejected",
-               "Ad format and functionality")
+        c.fail("aspect ratio", f"{w}×{h} ({actual:.3f}) is not {listing(spec['ratios'])} — "
+                               "non-standard ratios get letterboxed or rejected", pol["format"])
 
-    # Duration — policy says 5–60s, the spec sheet accepts up to 10 minutes
+    # Duration
+    lo, hi = spec["duration"]
     if duration == 0:
         c.warn("duration", "could not be determined")
-    elif duration < 5:
-        c.fail("duration", f"{duration:.1f}s — policy minimum is 5s",
-               "Ad format and functionality")
-    elif duration <= 60:
-        c.ok("duration", f"{duration:.1f}s (policy window 5–60s)")
-    elif fmt == "spark":
-        c.info("duration", f"{duration:.1f}s — Spark Ads have no duration restriction")
+    elif duration < lo:
+        c.fail("duration", f"{duration:.1f}s — policy minimum is {lo}s", pol["format"])
+    elif duration <= hi:
+        c.ok("duration", f"{duration:.1f}s (policy window {lo}–{hi}s)")
+    elif fmt in spec["uncapped_formats"]:
+        c.info("duration", f"{duration:.1f}s — {spec['uncapped_formats'][fmt]}")
     else:
-        c.warn("duration", f"{duration:.1f}s exceeds the 60s stated in the Ad Format policy. "
-                           "The spec sheet accepts up to 10 min, so it will upload, but it "
-                           "carries review risk", "Ad format and functionality")
+        c.warn("duration", f"{duration:.1f}s exceeds the {hi}s stated in the Ad Format policy. "
+                           f"{spec['over_duration']}", pol["format"])
 
     # File size and bitrate
-    if size_mb <= 500:
-        c.ok("file size", f"{size_mb:.1f} MB (limit 500 MB)")
+    max_mb = spec["max_video_mb"]
+    if size_mb <= max_mb:
+        c.ok("file size", f"{size_mb:.1f} MB (limit {max_mb} MB)")
     else:
-        c.fail("file size", f"{size_mb:.1f} MB exceeds the 500 MB limit", "Video ad specs")
+        c.fail("file size", f"{size_mb:.1f} MB exceeds the {max_mb} MB limit", pol["video"])
 
+    min_kbps = spec["min_bitrate_kbps"]
     if bitrate_kbps == 0:
         c.warn("bitrate", "could not be determined")
-    elif bitrate_kbps >= 516:
-        c.ok("bitrate", f"{bitrate_kbps:.0f} kbps (minimum 516 kbps)")
+    elif bitrate_kbps >= min_kbps:
+        c.ok("bitrate", f"{bitrate_kbps:.0f} kbps (minimum {min_kbps} kbps)")
     else:
-        c.fail("bitrate", f"{bitrate_kbps:.0f} kbps is below the 516 kbps minimum",
-               "Video ad specs")
+        c.fail("bitrate", f"{bitrate_kbps:.0f} kbps is below the {min_kbps} kbps minimum", pol["video"])
 
     # Audio is mandatory
     if a:
         abr = int(a.get("bit_rate", 0)) / 1000 if a.get("bit_rate") else 0
         detail = f"{a.get('codec_name')} " + (f"{abr:.0f} kbps" if abr else "(bitrate unknown)")
         c.ok("audio present", detail)
-        if abr and abr < 64:
+        if abr and abr < spec["min_audio_kbps"]:
             c.warn("audio quality", f"{abr:.0f} kbps is low — policy rejects unclear or muffled sound",
-                   "Ad format and functionality")
+                   pol["format"])
         peak = audio_peak_db(path)
         if peak is None:
             c.warn("audio level", "could not measure loudness")
         elif peak <= -50:
             c.fail("audio level", f"peak {peak:.0f} dBFS — the audio track is silent, which review "
-                                  "treats as no audio", "Ad format and functionality")
+                                  "treats as no audio", pol["format"])
         elif peak < -30:
             c.warn("audio level", f"peak {peak:.0f} dBFS is very quiet — policy rejects unclear sound",
-                   "Ad format and functionality")
+                   pol["format"])
         else:
             c.ok("audio level", f"peak {peak:.0f} dBFS")
     else:
-        c.fail("audio present", "no audio stream — TikTok requires audio and rejects silent ads",
-               "Ad format and functionality")
+        c.fail("audio present", f"no audio stream — {spec['name']} requires audio and rejects silent ads",
+               pol["format"])
 
     # Motion requirement
+    cap = spec["max_frozen"]
     fr = freeze_ratio(path, duration)
     if fr is None:
         c.warn("motion", "could not measure frozen runtime")
-    elif fr > 0.5:
+    elif fr > cap:
         c.fail("motion", f"~{fr * 100:.0f}% of the runtime is frozen — static content may not "
-                         "exceed 50% and the ad cannot be motionless",
-               "Ad format and functionality")
-    elif fr > 0.25:
-        c.warn("motion", f"~{fr * 100:.0f}% of the runtime is frozen — under the 50% cap but "
+                         f"exceed {cap * 100:.0f}% and the ad cannot be motionless", pol["format"])
+    elif fr > cap / 2:
+        c.warn("motion", f"~{fr * 100:.0f}% of the runtime is frozen — under the {cap * 100:.0f}% cap but "
                          "worth adding movement")
     else:
-        c.ok("motion", f"~{fr * 100:.0f}% of runtime frozen (cap is 50%)")
+        c.ok("motion", f"~{fr * 100:.0f}% of runtime frozen (cap is {cap * 100:.0f}%)")
 
     return dict(width=w, height=h, duration=duration, size_mb=size_mb,
                 bitrate_kbps=bitrate_kbps, has_audio=bool(a), freeze_ratio=fr)
 
 
-def check_image(path, info, c):
+def check_image(path, info, spec, c):
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     f = info["format"]
+    pol = spec["policy"]
     if not v:
         c.fail("image stream", "could not read image")
         return None
@@ -240,38 +267,40 @@ def check_image(path, info, c):
     size_mb = int(f.get("size", 0)) / 1_048_576
     ext = os.path.splitext(path)[1].lower().lstrip(".")
 
-    if ext in ALLOWED_IMAGE_FORMATS:
+    if ext in spec["image_formats"]:
         c.ok("format", f".{ext}")
     else:
-        c.fail("format", f".{ext} — accepted: .jpg, .jpeg, .png", "Image ad specs")
+        accepted = ", ".join("." + x for x in spec["image_formats"])
+        c.fail("format", f".{ext} — accepted: {accepted}", pol["image"])
 
-    label, actual, dev = classify_ratio(w, h)
+    rec_label = spec["recommended"][0]
+    label, actual, dev = classify_ratio(w, h, spec["ratios"])
     if dev <= 0.02:
-        c.ok("aspect ratio", f"{w}×{h} ≈ {label}" + (" (recommended)" if label == "9:16" else ""))
-        mw, mh = MIN_DIMS_IMAGE[label]
+        c.ok("aspect ratio", f"{w}×{h} ≈ {label}" + (" (recommended)" if label == rec_label else ""))
+        mw, mh = spec["min_dims_image"][label]
         if w >= mw and h >= mh:
             c.ok("resolution", f"{w}×{h} (minimum {mw}×{mh})")
         else:
-            c.fail("resolution", f"{w}×{h} is below the {mw}×{mh} minimum for {label}",
-                   "Image ad specs")
+            c.fail("resolution", f"{w}×{h} is below the {mw}×{mh} minimum for {label}", pol["image"])
     else:
-        c.fail("aspect ratio", f"{w}×{h} ({actual:.3f}) is not 9:16, 1:1 or 16:9", "Image ad specs")
+        c.fail("aspect ratio", f"{w}×{h} ({actual:.3f}) is not {listing(spec['ratios'])}", pol["image"])
 
-    if size_mb <= 100:
-        c.ok("file size", f"{size_mb:.1f} MB (limit 100 MB)")
+    max_mb = spec["max_image_mb"]
+    if size_mb <= max_mb:
+        c.ok("file size", f"{size_mb:.1f} MB (limit {max_mb} MB)")
     else:
-        c.fail("file size", f"{size_mb:.1f} MB exceeds the 100 MB limit", "Image ad specs")
+        c.fail("file size", f"{size_mb:.1f} MB exceeds the {max_mb} MB limit", pol["image"])
 
     c.info("overlaid elements", "Leave room for brand/app name, logo, skip button and CTA — "
-                                "TikTok composites these over image ads")
+                                f"{spec['name']} composites these over image ads")
     return dict(width=w, height=h, size_mb=size_mb)
 
 
-def render_overlay(path, out, w, h, is_video, seek):
+def render_overlay(path, out, w, h, is_video, seek, safe):
     """Shade the UI-covered regions over a real frame and outline what's safe."""
-    T, B = round(h * SAFE["top"]), round(h * SAFE["bottom"])
-    L, R = round(w * SAFE["left"]), round(w * SAFE["right"])
-    RW = round(w * SAFE["right_lower"])
+    T, B = round(h * safe["top"]), round(h * safe["bottom"])
+    L, R = round(w * safe["left"]), round(w * safe["right"])
+    RW = round(w * safe["right_lower"])
     mid = h // 2
     shade, line = "red@0.35", "lime@0.9"
 
@@ -296,17 +325,32 @@ def render_overlay(path, out, w, h, is_video, seek):
 
 
 def main():
-    p = argparse.ArgumentParser(description="Preflight a TikTok ad asset against TikTok specs.")
+    p = argparse.ArgumentParser(description="Preflight an ad asset against the ad platform's specs.",
+                                epilog="--platform is required. Ask the user which platform the asset "
+                                       "is for; never guess.")
     p.add_argument("path", help="Rendered video or image file.")
-    p.add_argument("--format", default="in-feed",
-                   choices=["in-feed", "spark", "topview", "image"],
-                   help="Placement the asset is for (affects duration rules).")
+    p.add_argument("--platform", choices=sorted(SPECS),
+                   help="REQUIRED. Ad platform the asset is for. Specs are bundled for: "
+                        + ", ".join(SPECS) + ".")
+    p.add_argument("--format", choices=sorted({f for spec in SPECS.values() for f in spec["formats"]}),
+                   help="Placement the asset is for (affects duration rules). Depends on the platform: "
+                        + "; ".join(f"{k}: {', '.join(v['formats'])} (default {v['formats'][0]})"
+                                    for k, v in SPECS.items()) + ".")
     p.add_argument("--overlay", metavar="OUT.png",
                    help="Write a safe-zone overlay frame here for visual review.")
     p.add_argument("--seek", type=float, default=1.0,
                    help="Timestamp (s) to grab for the overlay. Default 1.0.")
     p.add_argument("--json", action="store_true", help="Machine-readable output.")
     a = p.parse_args()
+
+    if not a.platform:
+        p.error("--platform required. Don't assume: ask the user which platform the asset is for. "
+                f"Specs are bundled for: {', '.join(SPECS)}.")
+    spec = SPECS[a.platform]
+    a.format = a.format or spec["formats"][0]
+    if a.format not in spec["formats"]:
+        p.error(f"--format {a.format} isn't a {spec['name']} format. "
+                f"Choose from: {', '.join(spec['formats'])}.")
 
     for tool in ("ffprobe", "ffmpeg"):
         if not shutil.which(tool):
@@ -319,13 +363,14 @@ def main():
     info = probe(a.path)
     c = Check()
 
-    meta = check_video(a.path, info, a.format, c) if is_video else check_image(a.path, info, c)
+    meta = (check_video(a.path, info, a.format, spec, c) if is_video
+            else check_image(a.path, info, spec, c))
 
     overlay_info = None
     if a.overlay and meta:
         seek = min(a.seek, max(meta.get("duration", 1) - 0.1, 0)) if is_video else 0
         overlay_info, err = render_overlay(a.path, a.overlay, meta["width"], meta["height"],
-                                           is_video, seek)
+                                           is_video, seek, spec["safe"])
         if err:
             c.warn("safe-zone overlay", f"could not render: {err}")
         else:
@@ -333,11 +378,11 @@ def main():
                                         "logo sits in the shaded areas")
 
     if a.json:
-        print(json.dumps(dict(file=a.path, format=a.format, metadata=meta,
+        print(json.dumps(dict(file=a.path, platform=a.platform, format=a.format, metadata=meta,
                               safe_zone_px=overlay_info, checks=c.items), indent=2))
     else:
         counts = {s: sum(1 for i in c.items if i["status"] == s) for s in ("FAIL", "WARN", "PASS")}
-        print(f"\nTikTok media preflight — {os.path.basename(a.path)} · {a.format}")
+        print(f"\n{spec['name']} media preflight — {os.path.basename(a.path)} · {a.format}")
         print(f"{counts['FAIL']} fail · {counts['WARN']} warn · {counts['PASS']} pass\n")
         glyph = {"PASS": "  ok  ", "FAIL": " FAIL ", "WARN": " WARN ", "INFO": " note "}
         for i in c.items:
