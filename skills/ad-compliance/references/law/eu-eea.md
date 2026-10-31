@@ -1,4 +1,5 @@
 # EU / EEA Legal Layer
+Last reviewed: 2026-10-31
 
 **Read this whenever any EU or EEA market is in scope.** It sits *on top of* TikTok's platform
 policy, not inside it.

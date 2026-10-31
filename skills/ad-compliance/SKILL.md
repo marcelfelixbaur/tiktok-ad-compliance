@@ -135,6 +135,14 @@ python3 scripts/preflight_media.py banner.jpg --platform tiktok --format image
 
 The safe-zone overlay is worth actually opening — text placement is the one check no parser can do for you, and TikTok's caption block, CTA button, and side rail cover more of the frame than people expect.
 
+## Check how current the references are
+
+Every reference file has a `Last reviewed: YYYY-MM-DD` line under its title. Before giving a verdict, read that date in each file you used. If any is more than 60 days before today:
+
+- say so at the top of the report, naming the file and its date;
+- tell the user how to update: `claude plugin update online-ad-compliance@marcelfelixbaur` in Claude Code, or turn on auto-update under `/plugin` → **Marketplaces**. Installs from Anthropic's plugin directory update by themselves; an uploaded zip has to be replaced by hand;
+- check the live policy pages listed under Sources in that file before making any close call.
+
 ## Reporting back
 
 End with a short compliance summary, not a wall of policy text. `assets/compliance-report.md` is the template. Keep it to what the user has to act on:

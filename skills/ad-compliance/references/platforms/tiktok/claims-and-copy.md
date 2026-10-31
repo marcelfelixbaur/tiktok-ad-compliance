@@ -1,4 +1,5 @@
 # Claims and Copy
+Last reviewed: 2026-10-31
 
 Everything a viewer reads or hears: voiceover, on-screen text, ad caption, headline, display name, CTA, and landing-page copy. Most rejections that survive the industry gate die here.
 

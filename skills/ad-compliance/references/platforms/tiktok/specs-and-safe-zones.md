@@ -1,4 +1,5 @@
 # Specs and Safe Zones
+Last reviewed: 2026-10-31
 
 Technical requirements for export, and where TikTok's interface covers the frame.
 

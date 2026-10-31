@@ -1,0 +1,69 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    # Pinned: setup-python only builds Python 3.8 for some Ubuntu releases.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.8 is the minimum the README states.
+        python: ["3.8", "3.12"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Run tests
+        run: python3 -m unittest discover tests -v
+
+  validate:
+    name: Plugin validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Validate for the plugin directory
+        run: npx -y @anthropic-ai/claude-code@2.1.314 plugin validate --profile directory --strict .
+
+  version:
+    name: Version raised
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check plugin.json version against the base branch
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --quiet "$BASE" HEAD -- skills .claude-plugin/plugin.json; then
+            echo "Nothing under skills/ or in plugin.json changed, so no new version is needed."
+            exit 0
+          fi
+          read_version='import json, sys; print(json.load(sys.stdin)["version"])'
+          old=$(git show "$BASE:.claude-plugin/plugin.json" | python3 -c "$read_version")
+          new=$(python3 -c "$read_version" < .claude-plugin/plugin.json)
+          if [ "$old" = "$new" ]; then
+            echo "::error file=.claude-plugin/plugin.json::skills/ or plugin.json changed, but version is still $new. Raise it, or users won't get the update (see MAINTENANCE.md)."
+            exit 1
+          fi
+          echo "Version raised: $old -> $new"
