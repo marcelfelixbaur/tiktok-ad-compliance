@@ -82,7 +82,7 @@ Known upcoming changes. Remove an item once it's handled, and add new ones as th
 
 ## Weekly review procedure
 
-The scheduled weekly task runs this. It can also be run by hand.
+The scheduled weekly task runs this every Sunday at 19:39 UTC, so its pull request is ready to review on Monday morning. It can also be run by hand.
 
 1. Read this file: the incorporated change-log entries, the watchlist, and the sources.
 2. **Platform policies.** For each supported platform:
