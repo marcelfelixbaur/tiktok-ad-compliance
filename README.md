@@ -6,6 +6,8 @@ Checks your ad against each platform's policies and the advertising law of your 
 
 Online Ad Compliance is a plugin for Claude. Before writing any script or copy, it asks where the ad will run, in which countries, and what is being sold. It then checks eligibility, claims, creative and specs against that platform's ad policies and, for EU and EEA markets, against EU and national advertising law. A platform approving an ad doesn't make it lawful, so it checks both.
 
+The skill inside follows the open [Agent Skills](https://agentskills.io/) format, so other agents that support skills can use it too. Automatic updates and the directory listing are Claude-only.
+
 ## Platforms
 
 | Platform | Ad policy checks | Legal checks (EU/EEA markets) |
@@ -59,6 +61,20 @@ A listing in Anthropic's plugin directory is coming. Installs from the directory
 
 An uploaded zip doesn't update itself.
 
+### Other agents
+
+Agents that support the [Agent Skills](https://agentskills.io/) format can load the skill folder directly. The agent needs to be able to read files and run shell commands for the checker scripts. Only Claude has been tested.
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/marcelfelixbaur/online-ad-compliance.git ~/online-ad-compliance
+   ```
+
+2. Link or copy `~/online-ad-compliance/skills/ad-compliance` into your agent's skills folder. Its documentation says where that is.
+
+Without an agent, the scripts also work on their own; see [Using the scripts on their own](#using-the-scripts-on-their-own).
+
 ### Upgrading from the standalone TikTok skill
 
 If you installed the earlier `tiktok-ad-compliance` skill by linking or copying it into `~/.claude/skills/`, remove it before installing the plugin, so the old version doesn't keep loading:
@@ -74,6 +90,7 @@ rm -rf ~/.claude/skills/tiktok-ad-compliance
 | Claude Code, auto-update on | Nothing to do. New versions download in the background and load the next time you start Claude Code, or after `/reload-plugins` |
 | Claude Code, auto-update off | `claude plugin update online-ad-compliance@marcelfelixbaur` |
 | Claude apps, uploaded zip | Make a new zip as above, remove the old skill in **Settings → Capabilities**, then upload the new zip |
+| Other agents | `git -C ~/online-ad-compliance pull`. A linked folder picks it up; a copy has to be copied again |
 
 ## Check that it works
 

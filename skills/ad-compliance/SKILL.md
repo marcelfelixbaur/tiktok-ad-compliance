@@ -1,6 +1,8 @@
 ---
 name: ad-compliance
 description: Check paid ads against the ad platform's policies and the advertising law of the target markets before they are produced — video, image, carousel, animated, creator and boosted posts. Platform policy is covered for TikTok today. For other platforms (Meta, Google Ads, YouTube, ...) it says their policies aren't covered and runs the legal and general claim checks only. Legal checks cover EU/EEA markets (UCPD, green claims, price-reduction rules, AI Act disclosure, health and cosmetics claims, influencer disclosure, national codes). Use this whenever the user is making, scripting, storyboarding, editing or reviewing an ad, promo or paid creative for any platform; whenever they ask whether a product, claim, visual or piece of ad copy is allowed on an ad platform or lawful in a market; or whenever an ad was rejected and they want to know why. Use it before producing any paid ad even if the user never mentions policy, because a problem found after the render is a reshoot.
+license: MIT
+compatibility: Works in any agent that can read files and run shell commands. The bundled checkers need Python 3.8+; the media check also needs ffmpeg and ffprobe. No network access needed.
 ---
 
 # Ad Compliance
@@ -140,7 +142,10 @@ The safe-zone overlay is worth actually opening — text placement is the one ch
 Every reference file has a `Last reviewed: YYYY-MM-DD` line under its title. Before giving a verdict, read that date in each file you used. If any is more than 60 days before today:
 
 - say so at the top of the report, naming the file and its date;
-- tell the user how to update: `claude plugin update online-ad-compliance@marcelfelixbaur` in Claude Code, or turn on auto-update under `/plugin` → **Marketplaces**. Installs from Anthropic's plugin directory update by themselves; an uploaded zip has to be replaced by hand;
+- tell the user how to update, for the way they installed it:
+  - Claude Code plugin: `claude plugin update online-ad-compliance@marcelfelixbaur`, or turn on auto-update under `/plugin` → **Marketplaces**;
+  - Anthropic's plugin directory: updates arrive by themselves;
+  - uploaded zip, or a copy in another agent's skills folder: get the latest `skills/ad-compliance` folder from <https://github.com/marcelfelixbaur/online-ad-compliance> and replace the old one;
 - check the live policy pages listed under Sources in that file before making any close call.
 
 ## Reporting back

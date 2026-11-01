@@ -2,6 +2,11 @@
 
 Each release raises `version` in `.claude-plugin/plugin.json`. See [MAINTENANCE.md](MAINTENANCE.md) for the release procedure.
 
+## 1.0.2 — 2026-11-01
+
+- The skill can be used in other agents that support the open Agent Skills format. The README explains how to install and update it there, and `SKILL.md` declares its licence and requirements.
+- The out-of-date warning gives update steps for every way of installing, not only Claude Code.
+
 ## 1.0.1 — 2026-10-31
 
 - Every reference file shows when it was last reviewed. Claude warns at the top of the report when a file it used is more than 60 days old, says how to update, and checks the live policy pages before a close call.
